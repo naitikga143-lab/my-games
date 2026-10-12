@@ -246,6 +246,7 @@
 
   const player = buildCar(0xff3b3b);
   scene.add(player);
+  window.SBR = { scene, ROAD_WIDTH, player }
 
   let playerLane = 1;
   let playerX = laneX(playerLane);
@@ -407,7 +408,8 @@
     scoreVal.textContent = '0';
     startscreen.style.display = 'none';
     document.getElementById('center-msg').style.display = 'none';
-    running = true;
+      if (window.SBRAnimals) window.SBRAnimals.reset();
+      running = true;
   }
 
   document.getElementById('tapstart').addEventListener('click', startGame);
@@ -491,6 +493,10 @@
       player.rotation.y = Math.sin(performance.now()*0.002)*0.01;
 
       const move = speed*dt;
+      if (window.SBRAnimals){
+        window.SBRAnimals.update(dt, move);
+        if (window.SBRAnimals.checkCollision(player.position.x)) endGame();
+      }
       obstacles.forEach(o=>{ o.mesh.position.z += move; });
       boosts.forEach(b=>{ b.mesh.position.z += move; b.mesh.rotation.z += 0.05*dt; });
       dashes.forEach(d=>{
