@@ -246,7 +246,7 @@
 
   const player = buildCar(0xff3b3b);
   scene.add(player);
-  window.SBR = { scene, ROAD_WIDTH, player }
+  window.SBR = { scene, ROAD_WIDTH, player, score: 0 };
 
   let playerLane = 1;
   let playerX = laneX(playerLane);
@@ -536,6 +536,7 @@
       }
 
       score += speed*dt*0.6;
+      window.SBR.score = score
       scoreVal.textContent = Math.floor(score);
       speedVal.textContent = Math.floor(speed*220);
     }

@@ -1,8 +1,8 @@
 (function(){
   const ANIMALS = [];
   let distanceSinceLast = 0;
-  const SPAWN_DISTANCE = 55;   // kitni world-distance baad next animal spawn ho
-  const CROSS_DURATION = 1.1;  // seconds mein road kitni jaldi cross karega
+  const SPAWN_DISTANCE = 70;   // kitni world-distance baad next animal spawn ho
+  const CROSS_DURATION = 3.0;  // seconds mein road kitni jaldi cross karega
 
   function buildAnimal(type){
     const group = new THREE.Group();
@@ -33,6 +33,7 @@
   }
 
   function spawn(){
+    SPAWN_DISTANCE = Math.max(30, 70 - (window.SBR.score || 0) * 0.015);
     const types = ['cow','dog','cat'];
     const type = types[Math.floor(Math.random()*types.length)];
     const fromLeft = Math.random() < 0.5;
