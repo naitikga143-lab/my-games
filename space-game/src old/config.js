@@ -1,0 +1,1 @@
+export const CONFIG = { shipSpeed: 420, starCount: 150 };

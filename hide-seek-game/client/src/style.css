@@ -7,11 +7,19 @@ body {
 canvas { display: block; touch-action: none; }
 
 body::after {
-  content: "Click | WASD chalo | Shift daudo | C baitho (on/off) | Esc mouse wapas";
+  content: "Click | WASD | Shift daudo | C baitho | Q/E jhaank | Z jhaank-lock | 1/2 gun | V camera change | Esc mouse wapas";
   position: fixed; left: 10px; bottom: 10px;
-  color: #fff; font: 13px Arial; opacity: 0.7; pointer-events: none;
+  color: #fff; font: 12px Arial; opacity: 0.7; pointer-events: none;
 }
 body.touch::after { display: none; }
+
+/* crosshair */
+body::before {
+  content: ""; position: fixed; left: 50%; top: 50%;
+  width: 4px; height: 4px; margin: -2px 0 0 -2px; border-radius: 50%;
+  background: rgba(255,230,180,0.85); box-shadow: 0 0 0 1px rgba(0,0,0,0.5);
+  pointer-events: none; z-index: 4;
+}
 
 #touchUI { position: fixed; inset: 0; z-index: 5; pointer-events: none; }
 #joyZone { position: absolute; left: 0; top: 0; width: 45%; height: 100%; pointer-events: auto; }
@@ -29,11 +37,32 @@ body.touch::after { display: none; }
 }
 
 #touchUI button {
-  position: absolute; width: 72px; height: 72px; border-radius: 50%;
-  border: 2px solid rgba(255,200,120,0.6); background: rgba(20,12,6,0.45);
-  color: #ffd9a0; font: bold 14px Arial; pointer-events: auto; z-index: 6;
+  position: absolute; width: 50px; height: 50px; padding: 0; border-radius: 50%;
+  border: 2px solid rgba(255,200,120,0.55); background: rgba(20,12,6,0.45);
+  color: #ffd9a0; font: bold 11px Arial; pointer-events: auto; z-index: 6;
   touch-action: none; -webkit-tap-highlight-color: transparent;
 }
 #touchUI button.active { background: rgba(255,170,60,0.6); color: #000; }
-#runBtn { right: calc(20px + env(safe-area-inset-right)); bottom: calc(24px + env(safe-area-inset-bottom)); }
-#crouchBtn { right: calc(108px + env(safe-area-inset-right)); bottom: calc(24px + env(safe-area-inset-bottom)); }
+
+#touchUI #fireBtn {
+  width: 68px; height: 68px; font-size: 13px;
+  border-color: rgba(255,90,60,0.8); background: rgba(120,20,10,0.5);
+  right: calc(24px + env(safe-area-inset-right)); bottom: calc(36px + env(safe-area-inset-bottom));
+}
+#touchUI #fireBtn.active { background: rgba(255,80,50,0.75); color: #fff; }
+#touchUI #runBtn { right: calc(102px + env(safe-area-inset-right)); bottom: calc(28px + env(safe-area-inset-bottom)); }
+#touchUI #crouchBtn { right: calc(96px + env(safe-area-inset-right)); bottom: calc(86px + env(safe-area-inset-bottom)); }
+#touchUI #gunBtn { right: calc(28px + env(safe-area-inset-right)); bottom: calc(114px + env(safe-area-inset-bottom)); }
+#touchUI #cam1, #touchUI #cam2, #touchUI #cam3 {
+  width: 36px; height: 36px; font-size: 13px; top: calc(12px + env(safe-area-inset-top));
+}
+#touchUI #cam3 { right: calc(20px + env(safe-area-inset-right)); }
+#touchUI #cam2 { right: calc(62px + env(safe-area-inset-right)); }
+#touchUI #cam1 { right: calc(104px + env(safe-area-inset-right)); }
+
+#touchUI #peekL, #touchUI #peekR, #touchUI #lockBtn {
+  width: 44px; height: 44px; bottom: calc(176px + env(safe-area-inset-bottom));
+}
+#touchUI #peekL { left: calc(20px + env(safe-area-inset-left)); }
+#touchUI #peekR { left: calc(72px + env(safe-area-inset-left)); }
+#touchUI #lockBtn { left: calc(124px + env(safe-area-inset-left)); font-size: 10px; }

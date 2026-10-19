@@ -10,7 +10,7 @@ export function createRenderer() {
   scene.background = new THREE.Color(0x0b0806);
   scene.fog = new THREE.Fog(0x0b0806, 10, 45);
 
-  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.05, 100);
 
   window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;

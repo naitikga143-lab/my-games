@@ -1,7 +1,11 @@
-import { input, toggle } from './input.js';
+import {
+  input, toggle, setView, peekPress, peekRelease,
+  togglePeekLock, setWeapon, peekValue,
+} from './input.js';
+import { WEAPONS } from './weapons.js';
 
-const R = 55;       // joystick radius (px)
-const LOOK = 0.005; // look sensitivity
+const R = 55;
+const LOOK = 0.005;
 
 function zone(el, onStart, onMove, onEnd) {
   let id = null;
@@ -33,11 +37,21 @@ export function setupTouch() {
     <div id="joyZone"></div>
     <div id="lookZone"></div>
     <div id="joyBase"><div id="joyKnob"></div></div>
+    <button id="fireBtn">FIRE</button>
+    <button id="runBtn">RUN</button>
     <button id="crouchBtn">SIT</button>
-    <button id="runBtn">RUN</button>`;
+    <button id="gunBtn"></button>
+    <button id="cam1">1</button>
+    <button id="cam2">2</button>
+    <button id="cam3">3</button>
+    <button id="peekL">◀</button>
+    <button id="peekR">▶</button>
+    <button id="lockBtn">LOCK</button>`;
   document.body.appendChild(ui);
 
   const $ = (id) => document.getElementById(id);
+
+  // ---------- joystick ----------
   const base = $('joyBase'), knob = $('joyKnob');
   const rest = () => ({ x: 90, y: innerHeight - 100 });
   let origin = rest();
@@ -64,6 +78,7 @@ export function setupTouch() {
       origin = rest(); placeBase(origin);
     });
 
+  // ---------- look ----------
   let last = null;
   zone($('lookZone'),
     (t) => { last = { x: t.clientX, y: t.clientY }; },
@@ -74,13 +89,43 @@ export function setupTouch() {
     },
     () => { last = null; });
 
-  const bind = (id, name) =>
-    $(id).addEventListener('touchstart', (e) => { e.preventDefault(); toggle(name); }, { passive: false });
-  bind('runBtn', 'run');
-  bind('crouchBtn', 'crouch');
-
-  addEventListener('inputchange', () => {
+  // ---------- buttons ----------
+  const sync = () => {
+    const pk = peekValue();
     $('runBtn').classList.toggle('active', input.run);
     $('crouchBtn').classList.toggle('active', input.crouch);
-  });
+    $('fireBtn').classList.toggle('active', input.fire);
+    $('lockBtn').classList.toggle('active', input.peekLock);
+    $('peekL').classList.toggle('active', pk === -1);
+    $('peekR').classList.toggle('active', pk === 1);
+    $('cam1').classList.toggle('active', input.view === 1);
+    $('cam2').classList.toggle('active', input.view === 2);
+    $('cam3').classList.toggle('active', input.view === 3);
+    $('gunBtn').textContent = WEAPONS[input.weapon].name;
+  };
+  addEventListener('inputchange', sync);
+  sync();
+
+  const press = (id, fn) =>
+    $(id).addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); fn(); });
+
+  const hold = (id, down, up) => {
+    const el = $(id);
+    const on = (e) => { e.preventDefault(); down(); };
+    const off = (e) => { e.preventDefault(); up(); };
+    el.addEventListener('touchstart', on, { passive: false });
+    el.addEventListener('touchend', off, { passive: false });
+    el.addEventListener('touchcancel', off, { passive: false });
+  };
+
+  press('runBtn', () => toggle('run'));
+  press('crouchBtn', () => toggle('crouch'));
+  press('cam1', () => setView(1));
+  press('cam2', () => setView(2));
+  press('cam3', () => setView(3));
+  press('gunBtn', () => setWeapon(input.weapon + 1));
+  press('lockBtn', togglePeekLock);
+  hold('fireBtn', () => { input.fire = true; sync(); }, () => { input.fire = false; sync(); });
+  hold('peekL', () => peekPress(-1), () => peekRelease(-1));
+  hold('peekR', () => peekPress(1), () => peekRelease(1));
 }
