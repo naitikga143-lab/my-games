@@ -3,21 +3,18 @@ const http = require('http');
 const path = require('path');
 const { Server } = require('socket.io');
 const config = require('./config');
+const service = require('./lobby/service');
+const wire = require('./lobby/events');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, { cors: { origin: true } });
+service.init(io);
 
-// Vite ka build kiya hua client serve karo
+app.get('/health', (_req, res) => res.send('ok'));   // UptimeRobot isi ko ping karega
 app.use(express.static(path.join(__dirname, '../client/dist')));
 
-io.on('connection', (socket) => {
-  console.log('Player connected:', socket.id);
-
-  socket.on('disconnect', () => {
-    console.log('Player disconnected:', socket.id);
-  });
-});
+io.on('connection', (socket) => wire(socket));
 
 server.listen(config.PORT, () => {
   console.log(`Server chal raha hai: http://localhost:${config.PORT}`);

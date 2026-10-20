@@ -4,7 +4,7 @@ export function inviteLink(slot) {
   const u = new URL(location.href);
   u.search = '';
   u.hash = '';
-  u.searchParams.set('lobby', state.code);
+  u.searchParams.set('lobby', state.snap.code);
   u.searchParams.set('join', `${slot.team}-${slot.player}`);
   return u.toString();
 }
@@ -12,12 +12,11 @@ export function inviteLink(slot) {
 const text = (slot) =>
   `Hide and Seek: Peace Less me aao! Team ${slot.team} Player ${slot.player} ka slot khaali hai.`;
 
-// phone ki share sheet: WhatsApp, Instagram, Telegram sab wahin dikhte hain
 export async function nativeShare(slot) {
   if (!navigator.share) return false;
   try {
     await navigator.share({ title: 'Peace Less', text: text(slot), url: inviteLink(slot) });
-  } catch { /* user ne cancel kiya */ }
+  } catch { /* cancel */ }
   return true;
 }
 

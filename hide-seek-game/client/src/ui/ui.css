@@ -112,3 +112,26 @@ body.in-lobby .btn { background: #0b2244; border: 1px solid #28c8ff; color: #bfe
 body.in-lobby .btn:active { background: #14407a; }
 body.in-lobby .btn.ghost { background: transparent; border-color: #2d5675; color: #8fb4d0; }
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 60; background: #04101ee6; border: 1px solid #28c8ff; color: #cfeaff; padding: 9px 16px; border-radius: 3px; font: 13px "Segoe UI", Arial, sans-serif; }
+
+/* ---- 4 match buttons + username page ---- */
+.grid { grid-template-columns: 38px repeat(4, 1fr) 54px; }
+.lob-top { display: flex; justify-content: space-between; align-items: center; max-width: 900px; margin: 0 auto 8px; gap: 8px; }
+.lob-top .lob-title { margin: 0; }
+.btn.leave { width: auto; margin: 0; padding: 6px 14px; }
+.btn:disabled { opacity: .5; }
+.cell .pl.u { font-size: 11px !important; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.mbtn { border: 0; cursor: pointer; padding: 2px; font: 700 10px "Segoe UI", Arial, sans-serif; letter-spacing: 1px; line-height: 1.3;
+  background: #08241f; color: #4dffb0; box-shadow: inset 0 0 0 1px #4dffb0; }
+.mbtn:active { filter: brightness(1.5); }
+.mbtn.busy { color: #ffc247; box-shadow: inset 0 0 0 1px #ffc247; background: #261c08; animation: blink 1.2s infinite; }
+.mbtn.full { color: #5a7a90; box-shadow: inset 0 0 0 1px #2d5675; background: #08111e; }
+
+.userpage { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.avatar-box { width: 220px; height: 260px; flex: none; box-shadow: inset 0 0 0 1px #1f6f9a; background: radial-gradient(circle at 50% 40%, #0f2c52, #050a14 70%); }
+.userpage .sub { font-size: 12px; opacity: .8; max-width: 300px; }
+.uinput { width: min(300px, 100%); box-sizing: border-box; padding: 12px; background: #06101f; border: 1px solid #28c8ff; color: #e4f6ff;
+  font: 16px "Segoe UI", Arial, sans-serif; text-align: center; letter-spacing: 2px; outline: none; }
+.err { color: #ff6b8a; font-size: 12px; min-height: 16px; margin: 0; max-width: 300px; }
+.ubtns { width: min(300px, 100%); }
+.hint { font-size: 11px; opacity: .6; max-width: 300px; margin: 0; }

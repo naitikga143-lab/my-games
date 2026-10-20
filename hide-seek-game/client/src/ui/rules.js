@@ -6,7 +6,7 @@ export function rules(next) {
   board.append(el('h2', '', 'RULES'));
   board.append(el('div', 'rules-body'));   // <- yahan baad me rules likhenge
   s.append(board);
-  const b = el('button', 'btn big-btn', 'Start Lobby');
+  const b = el('button', 'btn big-btn', 'Continue');
   b.onclick = next;
   s.append(b);
   show(s);
