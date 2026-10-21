@@ -39,3 +39,4 @@ socket.on('lobby:state', setSnap);
 socket.on('match:result', (r) => toast(r.message));
 socket.on('exchange:incoming', (d) => dispatchEvent(new CustomEvent('ps:exchange-in', { detail: d })));
 socket.on('exchange:result', (d) => dispatchEvent(new CustomEvent('ps:exchange-result', { detail: d })));
+socket.on('game:enter', (d) => dispatchEvent(new CustomEvent('ps:game', { detail: d })));

@@ -6,7 +6,7 @@ import { tracer } from './tracers.js';
 export const fighters = [];
 const handlers = {};
 export const on = (ev, fn) => (handlers[ev] = handlers[ev] || []).push(fn);
-const emit = (ev, ...a) => (handlers[ev] || []).forEach((fn) => fn(...a));
+export const emit = (ev, ...a) => (handlers[ev] || []).forEach((fn) => fn(...a));
 
 export function createFighter({ id, name, isPlayer = false }) {
   const f = {
@@ -97,7 +97,8 @@ export function shoot(shooter, origin, dir, w) {
   emit('shot', shooter, origin);
 
   if (victim) {
-    applyDamage(victim, shooter, head ? w.head : w.body, head);
+    if (victim.remote) emit('remoteHit', shooter, victim, head);   // asli damage server se aata hai
+    else applyDamage(victim, shooter, head ? w.head : w.body, head);
     emit('hit', shooter, victim, head);
   }
 }

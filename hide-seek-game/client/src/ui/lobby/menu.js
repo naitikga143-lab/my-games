@@ -1,5 +1,5 @@
 import { el, toast } from '../dom.js';
-import { mySlot } from './data.js';
+import { mySlot, state } from './data.js';
 import { nativeShare, whatsappUrl, copyLink } from './invite.js';
 import { req } from './net.js';
 
@@ -78,6 +78,14 @@ export function exchangeMenu(me, other) {
     const r = await req('exchange:request', { toPid: other.pid });
     if (r.error) { off?.(); off = null; status.textContent = r.error; }
   });
+  const tm = state.snap.teams[me.team];
+  if (tm.holder === state.pid && !tm.started) {
+    box.append(btn('Give START button', async () => {
+      const r = await req('team:transfer', { toPid: other.pid });
+      toast(r.error || 'START button de diya');
+      if (!r.error) close();
+    }));
+  }
   box.append(status, send, btn('Close', close, 'ghost'));
 }
 

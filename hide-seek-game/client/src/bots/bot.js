@@ -9,6 +9,7 @@ import { BOTS } from './config.js';
 import * as nav from './nav.js';
 
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+const BW = WEAPONS.map((w) => ({ ...w, body: w.body * BOTS.DMG, head: w.head * BOTS.DMG }))
 const rnd = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) * 2;
@@ -51,11 +52,13 @@ export class Bot {
   faceYaw(y, dt, rate) { this.yaw += wrap(y - this.yaw) * Math.min(1, dt * rate); }
 
   // ---------- spawn / death ----------
-  spawn(avoid) {
-    let n = null;
-    for (let k = 0; k < 12; k++) {
-      n = nav.randomHide();
-      if (!avoid || Math.hypot(n.x - avoid.x, n.z - avoid.z) > 14 || levelOf(n.y) !== levelOf(avoid.y)) break;
+  spawn(avoid, node) {
+    let n = node || null;
+    if (!n) {
+      for (let k = 0; k < 12; k++) {
+        n = nav.randomHide();
+        if (!avoid || Math.hypot(n.x - avoid.x, n.z - avoid.z) > 14 || levelOf(n.y) !== levelOf(avoid.y)) break;
+      }
     }
     revive(this.f, n.x, n.y, n.z);
     this.feetY = n.y;
@@ -85,7 +88,6 @@ export class Bot {
     const p = this.f.pos;
     const near = Math.hypot(p.x - ctx.camPos.x, p.z - ctx.camPos.z) < 34;
     this.model.group.visible = this.deadT < 4 && near;
-    if (GAME.RESPAWN && this.deadT > GAME.RESPAWN_DELAY + Math.random() * 0.01) this.spawn(ctx.player.pos);
   }
 
   // ---------- events ----------
@@ -185,6 +187,7 @@ export class Bot {
     this.lastSeenT = this.now;
     this.path = []; this.spotT = 0; this.aimOffT = 0; this.strafeT = 0;
     this.coverCD = Math.min(this.coverCD, rnd(0, 2));
+    this.fireCool = Math.max(this.fireCool, 0.25 + (1 - this.skill) * 0.5);
     this.f.crouch = false;
   }
 
@@ -194,7 +197,7 @@ export class Bot {
     this.target = null;
     this.newReact();
     this.setSub('move');
-    const hideP = clamp((this.camper ? 0.75 : 0.45) - 0.5 * this.press, 0.1, 0.9);
+    const hideP = clamp((this.camper ? 0.75 : this.rusher ? 0.2 : 0.45) - 0.5 * this.press, 0.1, 0.9);
     if (Math.random() < hideP) {
       this.state = 'hide';
       this.pathTo(nav.randomHide());
@@ -397,7 +400,7 @@ export class Bot {
       _dir.y += (Math.random() - 0.5) * 2 * w.spread;
       _dir.z += (Math.random() - 0.5) * 2 * w.spread;
       _dir.normalize();
-      shoot(f, _org, _dir, w);
+      shoot(f, _org, _dir, BW[this.weapon]);
       this.model.kick();
       if (w.auto) {
         this.burst--;

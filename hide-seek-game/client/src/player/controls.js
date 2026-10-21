@@ -19,9 +19,10 @@ const SPAWNS = [[0, 12], [-9, 11], [9, 11], [-15, 10]];
 const TOUCH = matchMedia('(pointer: coarse)').matches;
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
-export function createControls(camera, dom, avatar) {
+export function createControls(camera, dom, avatar, spawnIdx = 0) {
   let yaw = 0, pitch = 0, bodyYaw = 0, feetY = 0, eye = EYE, lean = 0, bobPhase = 0, deadT = 0;
-  const pos = new THREE.Vector3(0, 0, 12);
+  const S0 = SPAWNS[spawnIdx % SPAWNS.length];
+    const pos = new THREE.Vector3(S0[0], 0, S0[1]);
   me.pos.copy(pos);
   const vel = new THREE.Vector2();
   const st = { speed: 0, side: 0, dir: 1, crouch: false, run: false, lean: 0, pitch: 0, twist: 0 };
@@ -190,5 +191,5 @@ export function createControls(camera, dom, avatar) {
     }
   }
 
-  return { update };
+  return { update, aim: () => ({ yaw, pitch, lean }) };
 }

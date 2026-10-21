@@ -1,6 +1,7 @@
 import { on, aliveCount } from './fighters.js';
 import { me } from '../player/self.js';
 import { GAME } from './config.js';
+import { roomInfo } from './roomstate.js';
 
 const CSS = `
 #hud{position:fixed;inset:0;pointer-events:none;z-index:7;font:bold 12px Arial;color:#ffe9c4;text-shadow:0 1px 2px #000}
@@ -59,7 +60,7 @@ export function initHud() {
       if (hitT > 0 && (hitT -= dt) <= 0) hit.className = '';
       if (dmgT > 0 && (dmgT -= dt) <= 0) dmg.classList.remove('on');
 
-      const txt = `ALIVE ${aliveCount()} · KILLS ${me.kills} · HS ${me.headshots} · PTS ${me.points}`;
+      const txt = `${roomInfo.botsLeft ? 'BOTS ' + roomInfo.botsLeft : 'ROOM CLEAR'} · KILLS ${me.kills} · HS ${me.headshots} · PTS ${me.points}`;
       if (txt !== lastInfo) { info.textContent = txt; lastInfo = txt; }
 
       if (me.hp !== lastHp) {

@@ -1,0 +1,1 @@
+export const roomInfo = { botsLeft: 0, total: 0 };

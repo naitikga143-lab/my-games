@@ -14,9 +14,15 @@ import { setupTouch } from './player/touch.js';
 import { initTracers, updateTracers } from './game/tracers.js';
 import { initHud } from './game/hud.js';
 import { createBots } from './bots/manager.js';
+import { initNet } from './game/netsync.js';
+import { me } from './player/self.js';
 
-export function startGame() {
+const ROOM_BOTS = { 1: 16, 2: 18, 3: 20, 4: 24 };
+
+// d = server se aaya {room, team, pid, name}; ?dev=game me d nahi hota
+export function startGame(d = null) {
   document.body.classList.add('ingame');
+  document.body.classList.remove('in-lobby');
   document.getElementById('adTop')?.remove();   // game me ad nahi
   document.getElementById('app')?.remove();
 
@@ -35,15 +41,18 @@ export function startGame() {
   const avatar = createCharacter();
   scene.add(avatar.group);
 
+  if (d) { me.id = d.pid; me.name = d.name; }
   setupTouch();
-  const controls = createControls(camera, renderer.domElement, avatar);
-  const bots = createBots(scene, camera);
+  const controls = createControls(camera, renderer.domElement, avatar, d ? d.team - 1 : 0);
+  const bots = createBots(scene, camera, d ? ROOM_BOTS[d.room] : 16);
+  const net = d ? initNet(scene, controls) : null;
   const hud = initHud();
 
   startLoop(
     (dt) => {
       controls.update(dt);
       bots.update(dt);
+      net?.update(dt);
       updateTracers(dt);
       hud.update(dt);
     },

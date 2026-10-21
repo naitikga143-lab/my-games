@@ -198,3 +198,5 @@ export function findCover(pos, threat, maxDist = 12) {
   }
   return best;
 }
+
+export const getHideNodes = () => hideNodes;

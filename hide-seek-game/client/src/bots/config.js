@@ -1,6 +1,7 @@
 export const BOTS = {
   COUNT: 16,
-  FIRE: false,
+  FIRE: true,
+   DMG: 0.6,
   TAG: '',                        // ' [AI]' likhoge to naam ke saath AI tag dikhega
   NAMES: ['Kenji', 'Ryu', 'Hiro', 'Daichi', 'Takumi', 'Shin', 'Goro', 'Jiro',
           'Kaito', 'Souta', 'Ren', 'Akira', 'Haru', 'Yuto', 'Makoto', 'Isamu'],
