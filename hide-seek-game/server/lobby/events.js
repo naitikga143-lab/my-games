@@ -4,10 +4,13 @@ const L = require('./lobbies');
 const S = require('./service');
 const match = require('./match');
 const exchange = require('./exchange');
+const start = require('./start');
+const game = require('../game/rooms');
 
 function leave(p) {
   exchange.dropFor(p);
   match.cancelPool(p);
+  game.end(p);
   if (p.lobbyCode) S.unseat(p);
 }
 
@@ -36,7 +39,6 @@ module.exports = function wire(socket) {
     reply(cb, { ok: true, token: player.token, name: player.name });
   });
 
-  // refresh ya net tootne ke baad wapas wahi slot
   socket.on('session:resume', (d, cb) => {
     const p = players.get(d && d.token);
     if (!p) return reply(cb, { ok: false });
@@ -49,6 +51,7 @@ module.exports = function wire(socket) {
       socket.join(lobby.code);
       socket.emit('lobby:joined', { pid: p.pid, snap: L.snapshot(lobby) });
     }
+    if (p.game) socket.emit('game:enter', { ...p.game, pid: p.pid, name: p.name });
   });
 
   socket.on('lobby:start', (_d, cb) => {
@@ -107,11 +110,23 @@ module.exports = function wire(socket) {
     reply(cb, match.startSearch(lobby, team));
   });
 
+  socket.on('team:start', (_d, cb) => {
+    const p = need(cb);
+    if (p) reply(cb, start.startTeam(p));
+  });
+
+  socket.on('team:transfer', (d, cb) => {
+    const p = need(cb);
+    if (p) reply(cb, start.transfer(p, d && d.toPid));
+  });
+
   exchange.register(socket);
+  game.register(socket);
 
   socket.on('disconnect', () => {
     const p = me();
     if (!p) return;
+    game.drop(p);
     players.detach(p);
     if (p.pool) match.cancelPool(p);
     p.timer = setTimeout(() => fullRemove(p), cfg.GRACE_SECONDS * 1000);

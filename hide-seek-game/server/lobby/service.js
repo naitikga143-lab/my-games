@@ -14,6 +14,9 @@ exports.seat = (p, lobby, idx) => {
     sock.emit('lobby:joined', { pid: p.pid, snap: L.snapshot(lobby) });
   }
   exports.state(lobby);
+  // team pehle se start ho chuki hai to naya player seedha game me
+  const slot = lobby.slots[idx];
+  if (lobby.teams[slot.team].started) require('./start').enter(lobby, slot);
 };
 
 exports.unseat = (p) => {

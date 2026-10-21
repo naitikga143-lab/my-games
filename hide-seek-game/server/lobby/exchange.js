@@ -45,6 +45,7 @@ function register(socket) {
     if (!slot || slot.team !== mine.team || slot.token === p.token) {
       return reply(cb, { error: 'Exchange sirf apni team ke player se ho sakta hai' });
     }
+    if (lobby.teams[mine.team].started) return reply(cb, { error: 'Game start ho chuki hai, ab room nahi badal sakte' });
     for (const e of pending.values()) {
       if (e.from === p) return reply(cb, { error: 'Pehli request ka jawab abhi baaki hai' });
     }
