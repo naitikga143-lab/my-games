@@ -86,7 +86,8 @@ function parts() {
       p(SPH, C.eye, -0.04, 0.135, 0.205, 0.026, 0.014, 0.012, 0, 0, -0.3),
     ]),
     guns: buildGuns(p, bake, { BOX, cyl }),
-  }
+  };
+  return G;
 }
 
 export const makeGun = (i) => new THREE.Mesh(parts().guns[i], bodyMat);
