@@ -15,8 +15,12 @@ function settle(id, accepted, message) {
   if (accepted) {
     const lobby = L.get(e.from.lobbyCode);
     if (lobby && e.to.lobbyCode === e.from.lobbyCode) {
-      const a = lobby.slots[e.from.slotIdx], b = lobby.slots[e.to.slotIdx];
-      [a.room, b.room] = [b.room, a.room];
+      const ai = e.from.slotIdx, bi = e.to.slotIdx;
+      const a = lobby.slots[ai], b = lobby.slots[bi];
+      for (const k of ['pid', 'name', 'token', 'at', 'out']) [a[k], b[k]] = [b[k], a[k]];
+      e.from.slotIdx = bi;
+      e.to.slotIdx = ai;
+      L.fixHolders(lobby);
       S.state(lobby);
     } else {
       accepted = false;

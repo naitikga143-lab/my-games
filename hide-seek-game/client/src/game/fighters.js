@@ -10,10 +10,10 @@ export const emit = (ev, ...a) => (handlers[ev] || []).forEach((fn) => fn(...a))
 
 export function createFighter({ id, name, isPlayer = false }) {
   const f = {
-    id, name, isPlayer,
+    id, name, isPlayer, remote: false, human: false, team: 0,
     pos: new THREE.Vector3(), crouch: false,
     hp: 100, alive: true,
-    kills: 0, headshots: 0, points: 0, deaths: 0,
+    kills: 0, headshots: 0, points: 0, coins: 0, deaths: 0,
   };
   fighters.push(f);
   return f;
@@ -39,9 +39,10 @@ export function applyDamage(victim, attacker, dmg, head) {
   if (victim.hp <= 0) {
     victim.alive = false;
     victim.deaths++;
-    if (attacker) {
+    if (attacker && attacker !== victim) {
       attacker.kills++;
-      attacker.points += head ? 150 : 100;   // headshot kill = extra points
+      attacker.points += head ? 150 : 100;
+      attacker.coins += head ? 100 : 60;      // gun kharidne ke coins
       if (head) attacker.headshots++;
     }
     emit('kill', victim, attacker, head);
@@ -51,7 +52,7 @@ export function applyDamage(victim, attacker, dmg, head) {
 // ---------- hitscan ----------
 const R_BODY = 0.28, R_HEAD = 0.17;
 const _hc = new THREE.Vector3(), _oc = new THREE.Vector3();
-const _end = new THREE.Vector3(), _ts = new THREE.Vector3();
+const _end = new THREE.Vector3(), _ts = new THREE.Vector3(), _pd = new THREE.Vector3();
 
 function raySphere(o, d, c, r) {
   _oc.subVectors(o, c);
@@ -75,12 +76,13 @@ function rayBody(o, d, f, top) {
   return y >= f.pos.y + 0.05 && y <= top ? t : -1;
 }
 
-export function shoot(shooter, origin, dir, w) {
+function pellet(shooter, origin, dir, w) {
   let bestT = Math.min(w.range, rayDistance(origin, dir, w.range, levelOf(origin.y)));
   let victim = null, head = false;
 
   for (const f of fighters) {
     if (f === shooter || !f.alive) continue;
+    if (shooter.team && f.team === shooter.team) continue;   // teammate ko goli nahi lagti
     headCenter(f, _hc);
     const th = raySphere(origin, dir, _hc, R_HEAD);
     const tb = rayBody(origin, dir, f, _hc.y - 0.12);
@@ -94,11 +96,26 @@ export function shoot(shooter, origin, dir, w) {
   _ts.copy(dir).multiplyScalar(0.6).add(origin);
   _ts.y -= 0.12;
   tracer(_ts, _end);
-  emit('shot', shooter, origin);
+  emit('tracer', shooter, _ts, _end, !!victim, head, w);
+  emit('impact', shooter, _end, victim, head);
 
   if (victim) {
-    if (victim.remote) emit('remoteHit', shooter, victim, head);   // asli damage server se aata hai
-    else applyDamage(victim, shooter, head ? w.head : w.body, head);
+    if (!victim.remote) applyDamage(victim, shooter, head ? w.head : w.body, head);   // remote ka damage server se aata hai
     emit('hit', shooter, victim, head);
+  }
+}
+
+export function shoot(shooter, origin, dir, w) {
+  emit('shot', shooter, origin, dir, w);
+  const n = w.pellets || 1;
+  for (let i = 0; i < n; i++) {
+    if (n > 1) {
+      _pd.set(
+        dir.x + (Math.random() - 0.5) * 2 * w.psp,
+        dir.y + (Math.random() - 0.5) * 2 * w.psp,
+        dir.z + (Math.random() - 0.5) * 2 * w.psp
+      ).normalize();
+      pellet(shooter, origin, _pd, w);
+    } else pellet(shooter, origin, dir, w);
   }
 }

@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { buildGuns } from './guns';
 
 export const ROOT_SCALE = 0.86;
 export const HEAD_Y = { stand: 1.31, crouch: 0.83 };   // hit-test ke liye
-export const MUZZLE = [0.25, 0.36];
+export const MUZZLE = [0.25, 0.45, 0.72, 0.8];
 
 const C = {
   hood: 0x2b2a31, hoodDark: 0x1a191e, pants: 0x2c2720, cap: 0x101012,
@@ -84,25 +85,8 @@ function parts() {
       p(SPH, C.eye, 0.04, 0.135, 0.205, 0.026, 0.014, 0.012, 0, 0, 0.3),
       p(SPH, C.eye, -0.04, 0.135, 0.205, 0.026, 0.014, 0.012, 0, 0, -0.3),
     ]),
-    guns: [
-      bake([   // pistol (origin = grip)
-        p(BOX, C.gun, 0, 0.035, 0.09, 0.044, 0.05, 0.24),
-        p(BOX, C.gunLight, 0, 0.035, 0.225, 0.02, 0.022, 0.05),
-        p(BOX, C.gunLight, 0, -0.045, -0.01, 0.042, 0.115, 0.058, -0.18, 0, 0),
-        p(BOX, C.gun, 0, -0.012, 0.045, 0.02, 0.012, 0.07),
-      ]),
-      bake([   // smg
-        p(BOX, C.gun, 0, 0.03, 0.1, 0.06, 0.08, 0.3),
-        p(BOX, C.gunLight, 0, -0.085, 0.06, 0.04, 0.15, 0.05),
-        p(BOX, C.gunLight, 0, -0.05, -0.005, 0.045, 0.1, 0.05, -0.2, 0, 0),
-        p(BOX, C.gun, 0, 0.03, -0.12, 0.04, 0.06, 0.14),
-        p(BOX, C.gunLight, 0, 0.035, 0.3, 0.025, 0.025, 0.1),
-        p(BOX, C.gunLight, 0, -0.05, 0.13, 0.035, 0.07, 0.04),
-        p(BOX, C.gun, 0, 0.085, 0.08, 0.02, 0.02, 0.08),
-      ]),
-    ],
-  };
-  return G;
+    guns: buildGuns(p, bake, { BOX, cyl }),
+  }
 }
 
 export const makeGun = (i) => new THREE.Mesh(parts().guns[i], bodyMat);
@@ -120,7 +104,7 @@ const DOWN = new THREE.Vector3(0, -1, 0);
 const X_AXIS = new THREE.Vector3(1, 0, 0);
 const POLE_R = new THREE.Vector3(-0.6, -1, -0.2);
 const POLE_L = new THREE.Vector3(0.6, -1, -0.2);
-const LEFT_OFF = [[0.04, -0.045, 0.02], [0.012, -0.075, 0.13]];
+const LEFT_OFF = [[0.04, -0.045, 0.02], [0, -0.06, 0.2], [0, -0.03, 0.3], [0, -0.02, 0.4]];
 const _d = new THREE.Vector3(), _el = new THREE.Vector3(), _pp = new THREE.Vector3();
 const _iq = new THREE.Quaternion();
 const _tr = new THREE.Vector3(), _tl = new THREE.Vector3();
@@ -192,7 +176,7 @@ export function createCharacter() {
   mesh(g.eyes, head, eyeMat);
 
   const gunMount = pivot(aim, 0, 0, 0);
-  const guns = [0, 1].map((i) => {
+  const guns = [0, 1, 2, 3].map((i) => {
     const m = makeGun(i);
     const fl = makeFlash(i);
     m.add(fl);

@@ -1,0 +1,1 @@
+export const eco = { owned: [true, false, false, false] };

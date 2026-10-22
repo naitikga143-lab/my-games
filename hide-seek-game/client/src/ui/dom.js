@@ -20,3 +20,17 @@ export function toast(msg) {
   document.body.append(t);
   setTimeout(() => t.remove(), 2600);
 }
+
+export function feedMsg(text) {
+  let box = document.getElementById('feed2');
+  if (!box) {
+    box = el('div');
+    box.id = 'feed2';
+    document.body.append(box);
+  }
+  const d = el('div', 'feed2-item');
+  d.textContent = text;
+  box.append(d);
+  while (box.children.length > 5) box.firstChild.remove();
+  setTimeout(() => d.remove(), 7000);
+}

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-const N = 24;
+const N = 40;
 const lines = [];
 let idx = 0;
 

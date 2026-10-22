@@ -1,13 +1,15 @@
+import { eco } from '../game/economy.js';
+
 export const input = {
   moveX: 0, moveY: 0, lookX: 0, lookY: 0,
   run: false, crouch: false,
-  view: 2,                       // 1 = peeche se, 2 = aankh se, 3 = saamne se (chehra)
+  view: 2,                       // 1 = peeche se, 2 = aankh se, 3 = saamne se
   peekLock: false, peekDir: 0, peekHeld: 0,
   fire: false, weapon: 0,
 };
 export const keys = {};
 
-const WEAPON_COUNT = 2;
+const COUNT = 4;
 const changed = () => dispatchEvent(new Event('inputchange'));
 
 export function toggle(name) {
@@ -16,10 +18,7 @@ export function toggle(name) {
   changed();
 }
 
-export function setView(n) {
-  input.view = n;
-  changed();
-}
+export function setView(n) { input.view = n; changed(); }
 export const cycleView = () => setView(input.view === 2 ? 1 : input.view === 1 ? 3 : 2);
 
 export function peekPress(dir) {
@@ -39,9 +38,19 @@ export function togglePeekLock() {
 }
 export const peekValue = () => (input.peekLock ? input.peekDir : input.peekHeld);
 
+// sirf khareedi hui gun hi chun sakte ho
 export function setWeapon(i) {
-  input.weapon = (i + WEAPON_COUNT) % WEAPON_COUNT;
+  i = ((i % COUNT) + COUNT) % COUNT;
+  if (!eco.owned[i]) return;
+  input.weapon = i;
   changed();
+}
+
+export function nextWeapon(d = 1) {
+  for (let k = 1; k <= COUNT; k++) {
+    const i = (((input.weapon + d * k) % COUNT) + COUNT) % COUNT;
+    if (eco.owned[i]) { input.weapon = i; changed(); return; }
+  }
 }
 
 addEventListener('keydown', (e) => {
@@ -52,8 +61,11 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyQ') peekPress(-1);
   if (e.code === 'KeyE') peekPress(1);
   if (e.code === 'KeyZ') togglePeekLock();
-  if (e.code === 'Digit1') setWeapon(0);
-  if (e.code === 'Digit2') setWeapon(1);
+  const di = ['Digit1', 'Digit2', 'Digit3', 'Digit4'].indexOf(e.code);
+  if (di >= 0) {
+    if (eco.owned[di]) setWeapon(di);
+    else dispatchEvent(new CustomEvent('shop:want', { detail: di }));   // shop ke paas ho to kharid lo
+  }
 });
 addEventListener('keyup', (e) => {
   keys[e.code] = false;
@@ -68,5 +80,5 @@ document.addEventListener('mouseup', (e) => {
   if (e.button === 0) input.fire = false;
 });
 addEventListener('wheel', (e) => {
-  if (document.pointerLockElement) setWeapon(input.weapon + (e.deltaY > 0 ? 1 : -1));
+  if (document.pointerLockElement) nextWeapon(e.deltaY > 0 ? 1 : -1);
 });

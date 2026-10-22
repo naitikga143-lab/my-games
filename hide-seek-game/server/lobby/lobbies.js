@@ -10,7 +10,7 @@ function makeSlots() {
   const slots = [];
   for (let t = 1; t <= cfg.TEAMS; t++) {
     for (let p = 1; p <= cfg.PLAYERS; p++) {
-      slots.push({ team: t, player: p, room: p, pid: null, name: null, token: null, at: 0 });
+      slots.push({ team: t, player: p, room: p, pid: null, name: null, token: null, at: 0, out: null });
     }
   }
   return slots;
@@ -19,7 +19,7 @@ function makeSlots() {
 function create(code) {
   const teams = {};
   for (let t = 1; t <= cfg.TEAMS; t++) teams[t] = { started: false, holder: null };
-  const lobby = { code, slots: makeSlots(), searches: new Map(), teams, running: false };
+  const lobby = { code, slots: makeSlots(), searches: new Map(), teams, running: false, cleared: {} };
   lobbies.set(code, lobby);
   return lobby;
 }
@@ -60,7 +60,7 @@ function emptyAny(lobby) {
 
 function seat(lobby, p, idx) {
   const s = lobby.slots[idx];
-  s.pid = p.pid; s.name = p.name; s.token = p.token; s.at = ++seq;
+  s.pid = p.pid; s.name = p.name; s.token = p.token; s.at = ++seq; s.out = null;
   p.lobbyCode = lobby.code;
   p.slotIdx = idx;
   fixHolders(lobby);
@@ -94,7 +94,8 @@ function snapshot(lobby) {
     code: lobby.code,
     running: lobby.running,
     teams,
-    slots: lobby.slots.map(({ team, player, room, pid, name }) => ({ team, player, room, pid, name })),
+    cleared: lobby.cleared,
+    slots: lobby.slots.map(({ team, player, room, pid, name, out }) => ({ team, player, room, pid, name, out })),
     searching,
   };
 }

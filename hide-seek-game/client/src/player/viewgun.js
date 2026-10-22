@@ -7,7 +7,7 @@ export function createViewGun(camera) {
   root.rotation.y = Math.PI;   // barrel camera ke saamne
   camera.add(root);
 
-  const guns = [0, 1].map((i) => {
+  const guns = [0, 1, 2, 3].map((i) => {
     const m = makeGun(i);
     const fl = makeFlash(i);
     m.add(fl);

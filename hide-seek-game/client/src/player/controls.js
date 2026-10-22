@@ -19,7 +19,7 @@ const SPAWNS = [[0, 12], [-9, 11], [9, 11], [-15, 10]];
 const TOUCH = matchMedia('(pointer: coarse)').matches;
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
-export function createControls(camera, dom, avatar, spawnIdx = 0) {
+export function createControls(camera, dom, avatar, spawnIdx = 0, net = false) {
   let yaw = 0, pitch = 0, bodyYaw = 0, feetY = 0, eye = EYE, lean = 0, bobPhase = 0, deadT = 0;
   const S0 = SPAWNS[spawnIdx % SPAWNS.length];
     const pos = new THREE.Vector3(S0[0], 0, S0[1]);
@@ -85,7 +85,7 @@ export function createControls(camera, dom, avatar, spawnIdx = 0) {
     if (alive) deadT = 0;
     else {
       deadT += dt;
-      if (GAME.RESPAWN && deadT > GAME.RESPAWN_DELAY) respawn();
+      if (GAME.RESPAWN && !net && deadT > GAME.RESPAWN_DELAY) respawn();
     }
     avatar.setWeapon(input.weapon);
 
@@ -191,5 +191,14 @@ export function createControls(camera, dom, avatar, spawnIdx = 0) {
     }
   }
 
-  return { update, aim: () => ({ yaw, pitch, lean }) };
+  function teleport(x, y, z) {
+    pos.set(x, 0, z);
+    feetY = y;
+    vel.set(0, 0);
+    lean = 0;
+    deadT = 0;
+  }
+
+  return { update, teleport, aim: () => ({ yaw, pitch, lean }) };
+
 }

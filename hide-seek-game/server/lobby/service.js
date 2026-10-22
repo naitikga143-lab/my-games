@@ -26,3 +26,5 @@ exports.unseat = (p) => {
   const lobby = L.vacate(p);
   if (lobby && L.get(lobby.code)) exports.state(lobby);
 };
+
+exports.feed = (lobby, text) => io.to(lobby.code).emit('lobby:feed', { text });

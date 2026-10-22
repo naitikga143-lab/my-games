@@ -1,1 +1,3 @@
-export const roomInfo = { botsLeft: 0, total: 0 };
+import { GAME } from './config.js';
+
+export const roomInfo = { botsLeft: 0, total: 0, banner: '', respawn: GAME.RESPAWN };

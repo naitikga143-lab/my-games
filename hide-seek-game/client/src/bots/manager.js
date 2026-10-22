@@ -26,7 +26,7 @@ export function createBots(scene, camera, total = BOTS.COUNT) {
     b.skill = rnd(BOTS.SKILL_MIN, BOTS.SKILL_MAX);
     b.camper = Math.random() < 0.4;
     b.rusher = !b.camper && Math.random() < 0.35;
-    b.weapon = Math.random() < 0.5 ? 0 : 1;
+    b.weapon = 3;
     b.model.setWeapon(b.weapon);
     b.newReact();
   }

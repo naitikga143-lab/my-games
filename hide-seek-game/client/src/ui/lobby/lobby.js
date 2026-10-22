@@ -12,7 +12,8 @@ function draw() {
   liveEl.classList.toggle('hide', !state.snap.running);
   grid.replaceChildren();
   grid.append(el('div', 'corner'));
-  ROOMS.forEach((r) => grid.append(el('div', 'roomhead', `Room ${r.n} with ${r.bots} bots`)));
+  ROOMS.forEach((r) => grid.append(el('div', 'roomhead',
+    `Room ${r.n} with ${r.bots} bots${state.snap.cleared && state.snap.cleared[r.n] ? ' ✔ CLEAR' : ''}`)));
   grid.append(el('div', 'corner'));
 
   for (let t = 1; t <= TEAMS; t++) {
@@ -23,7 +24,7 @@ function draw() {
       const full = !!s.pid;
       const kind = s.pid === state.pid ? 'me' : !full ? 'empty' : t === me.team ? 'mate' : 'foe';
       const star = tm.holder && tm.holder === s.pid ? ' ★' : '';
-      const c = el('button', 'cell ' + kind,
+      const c = el('button', 'cell ' + kind + (s.out ? ' out' : ''),
         `<span class="rm">ROOM ${s.room}</span><span class="pl${full ? ' u' : ''}"></span><span class="nm">Team ${t} Player ${p}${star}</span>`);
       c.querySelector('.pl').textContent = full ? s.name : '+';
       c.onclick = () => {

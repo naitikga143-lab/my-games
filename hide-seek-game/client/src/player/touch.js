@@ -1,8 +1,8 @@
 import {
   input, toggle, setView, peekPress, peekRelease,
-  togglePeekLock, setWeapon, peekValue,
+  togglePeekLock, setWeapon, nextWeapon, peekValue,
 } from './input.js';
-import { WEAPONS } from './weapons.js';
+import { WEAPONS } from './weapons.js' 
 
 const R = 55;
 const LOOK = 0.005;
@@ -123,7 +123,7 @@ export function setupTouch() {
   press('cam1', () => setView(1));
   press('cam2', () => setView(2));
   press('cam3', () => setView(3));
-  press('gunBtn', () => setWeapon(input.weapon + 1));
+  press('gunBtn', () => nextWeapon(1));
   press('lockBtn', togglePeekLock);
   hold('fireBtn', () => { input.fire = true; sync(); }, () => { input.fire = false; sync(); });
   hold('peekL', () => peekPress(-1), () => peekRelease(-1));

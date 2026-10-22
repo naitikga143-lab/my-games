@@ -2,6 +2,7 @@ import { FLOOR_Y } from '../dims.js';
 import { makeTable } from './table.js';
 import { makeCupboard } from './cupboard.js';
 import { makeMachine } from './machine.js';
+import { buildShops } from '../shop.js';
 
 const P = Math.PI, H = P / 2;
 
@@ -38,4 +39,5 @@ function place(scene, y, s) {
 export function placeProps(scene) {
   for (const y of [0, FLOOR_Y]) [HALL, LEFT, RIGHT].forEach((s) => place(scene, y, s));
   place(scene, 0, CORNER);
+  buildShops(scene);
 }

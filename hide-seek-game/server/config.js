@@ -6,5 +6,8 @@ module.exports = {
   PLAYERS: 4,
   MATCH_SECONDS: 60,
   EXCHANGE_SECONDS: 20,
-  GRACE_SECONDS: 20,   // net tootne par itni der slot bacha rehta hai
+  GRACE_SECONDS: 20,
+  ROOM_BOTS: { 1: 16, 2: 18, 3: 20, 4: 24 },
+  RESPAWN: true,          // testing: marne ke baad respawn. Asli match me false kar dena
+  RESPAWN_SECONDS: 5,
 };

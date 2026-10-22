@@ -2,9 +2,20 @@ const L = require('./lobbies');
 const S = require('./service');
 const players = require('./players');
 
+// jis team ne start nahi dabaya aur uska room clear ho gaya
+function autoKill(lobby, slot) {
+  if (slot.out || !slot.token) return;
+  slot.out = 'auto';
+  S.feed(lobby, `Team ${slot.team} Player ${slot.player} auto killed`);
+  const p = players.get(slot.token);
+  if (p) S.to(p.sid, 'game:autokilled', { room: slot.room });
+  S.state(lobby);
+}
+
 function enter(lobby, slot) {
   const p = players.get(slot.token);
   if (!p) return;
+  if (lobby.cleared[slot.room]) return autoKill(lobby, slot);   // room pehle hi clear ho chuka
   p.game = { code: lobby.code, room: slot.room, team: slot.team };
   S.to(p.sid, 'game:enter', { ...p.game, pid: p.pid, name: p.name });
 }
@@ -37,4 +48,4 @@ function transfer(p, toPid) {
   return { ok: true };
 }
 
-module.exports = { enter, startTeam, transfer };
+module.exports = { enter, startTeam, transfer, autoKill };

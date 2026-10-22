@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { createCharacter } from '../player/model.js';
 import { createFighter, shoot, revive, headCenter, fighters } from '../game/fighters.js';
-import { WEAPONS } from '../player/weapons.js';
+import { BOT_GUN } from '../game/weapondata.js';
 import { blockedAt, losClear, levelOf } from '../world/collision.js';
 import { groundY } from '../world/stairs.js';
 import { GAME } from '../game/config.js';
@@ -9,7 +9,10 @@ import { BOTS } from './config.js';
 import * as nav from './nav.js';
 
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
-const BW = WEAPONS.map((w) => ({ ...w, body: w.body * BOTS.DMG, head: w.head * BOTS.DMG }))
+const stubModel = () => ({
+  group: { visible: true, position: { copy() {}, set() {} }, rotation: { x: 0, y: 0 } },
+  update() {}, setWeapon() {}, kick() {}, setDead() {},
+});
 const rnd = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) * 2;
@@ -17,10 +20,11 @@ const _eye = new THREE.Vector3(), _tp = new THREE.Vector3();
 const _org = new THREE.Vector3(), _dir = new THREE.Vector3();
 
 export class Bot {
-  constructor(i, scene) {
+  constructor(i, scene, headless = false) {
+    this.headless = headless;
     this.f = createFighter({ id: 'bot' + i, name: BOTS.NAMES[i % BOTS.NAMES.length] + BOTS.TAG });
-    this.model = createCharacter();
-    scene.add(this.model.group);
+    if (headless) this.model = stubModel();
+    else { this.model = createCharacter(); scene.add(this.model.group); }
 
     this.skill = rnd(BOTS.SKILL_MIN, BOTS.SKILL_MAX);
     this.camper = Math.random() < 0.4;
@@ -188,6 +192,7 @@ export class Bot {
     this.path = []; this.spotT = 0; this.aimOffT = 0; this.strafeT = 0;
     this.coverCD = Math.min(this.coverCD, rnd(0, 2));
     this.fireCool = Math.max(this.fireCool, 0.25 + (1 - this.skill) * 0.5);
+    if (this.onEngage) this.onEngage(this, t);
     this.f.crouch = false;
   }
 
@@ -333,12 +338,20 @@ export class Bot {
     }
     if (this.sub === 'hold') {
       this.faceYaw(Math.atan2(-dx, -dz), dt, 5);
+      this.peekT2 = (this.peekT2 ?? 1) - dt;
+      if (this.peekT2 <= 0) {
+        this.peeking = !this.peeking;
+        this.peekT2 = this.peeking ? rnd(0.7, 1.3) : rnd(1.2, 2.6);
+        f.crouch = !this.peeking;
+      }
       if (this.t > this.waitT || (seen && dist < 7)) {
         f.crouch = false;
+        this.peeking = false;
         this.setSub('engage');
         this.fireCool = Math.max(this.fireCool, 0.2);
+        return;
       }
-      return;
+      if (!this.peeking || !seen) return;     // chhupa hai; jhaank ke dikhe to goli
     }
 
     // dikhna band: peecha karo
@@ -355,10 +368,10 @@ export class Bot {
       }
       return;
     }
-    if (this.sub !== 'engage') this.setSub('engage');
+    if (this.sub !== 'engage' && this.sub !== 'hold') this.setSub('engage');
 
     // nishana (skill ke hisaab se galti)
-    const w = WEAPONS[this.weapon];
+    const w = BOT_GUN;
     this.aimOffT -= dt;
     if (this.aimOffT <= 0) {
       this.aimOffT = rnd(0.25, 0.5);
@@ -379,6 +392,7 @@ export class Bot {
 
     // strafe + doori control
     this.strafeT -= dt;
+    if (this.now - this.hitT < 0.5) this.strafeT = Math.min(this.strafeT, 0.15);
     if (this.strafeT <= 0) {
       this.strafeT = rnd(0.7, 2);
       this.strafe = Math.random() < 0.5 ? -1 : 1;
@@ -390,6 +404,7 @@ export class Bot {
     if (dist > 14) appr = 1; else if (dist < 5) appr = -0.8;
     this.des.set(-nz * this.strafe * sp + nx * appr * BOTS.WALK, nx * this.strafe * sp + nz * appr * BOTS.WALK);
     if (f.crouch) this.des.multiplyScalar(0.4);
+    if (this.sub === 'hold') this.des.set(0, 0);
 
     // goli (jahan bot dekh raha hai wahin jaati hai, seedha target pe nahi)
     if (BOTS.FIRE && this.t > this.react * 0.6 && this.fireCool <= 0 && err < 0.12 + (1 - this.skill) * 0.1) {
@@ -400,7 +415,7 @@ export class Bot {
       _dir.y += (Math.random() - 0.5) * 2 * w.spread;
       _dir.z += (Math.random() - 0.5) * 2 * w.spread;
       _dir.normalize();
-      shoot(f, _org, _dir, BW[this.weapon]);
+      shoot(f, _org, _dir, BOT_GUN);
       this.model.kick();
       if (w.auto) {
         this.burst--;

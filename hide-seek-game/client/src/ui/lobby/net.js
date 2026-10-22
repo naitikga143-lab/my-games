@@ -1,6 +1,6 @@
 import { io } from 'socket.io-client';
 import { state, setSnap } from './data.js';
-import { toast } from '../dom.js';
+import { toast, feedMsg } from '../dom.js';
 
 export const session = { name: '', token: sessionStorage.getItem('ps_token') || '' };
 
@@ -40,3 +40,6 @@ socket.on('match:result', (r) => toast(r.message));
 socket.on('exchange:incoming', (d) => dispatchEvent(new CustomEvent('ps:exchange-in', { detail: d })));
 socket.on('exchange:result', (d) => dispatchEvent(new CustomEvent('ps:exchange-result', { detail: d })));
 socket.on('game:enter', (d) => dispatchEvent(new CustomEvent('ps:game', { detail: d })));
+socket.on('lobby:feed', (m) => feedMsg(m.text));
+socket.on('game:autokilled', (d) =>
+  toast(`Room ${d.room} clear ho chuka hai, tum auto killed ho. Exit dabake naya start karo.`));
