@@ -8,3 +8,11 @@ export const WEAPONS = [
 
 // bots ki gun (RIFLE ke barabar damage aur speed)
 export const BOT_GUN = { name: 'BOT AR', price: 0, delay: 0.12, auto: true, kick: 0, body: 14, head: 42, range: 50, spread: 0.022, pellets: 1, psp: 0 };
+
+// scope: sab guns pe lagta hai. RED DOT default (free)
+export const SCOPES = [
+  { name: 'RED DOT', price: 0, zoom: 1.15 },
+  { name: 'HOLO', price: 150, zoom: 1.35 },
+  { name: '2X', price: 250, zoom: 2 },
+  { name: '3X', price: 400, zoom: 3 },
+];

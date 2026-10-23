@@ -66,3 +66,5 @@ body::before {
 #touchUI #peekL { left: calc(20px + env(safe-area-inset-left)); }
 #touchUI #peekR { left: calc(72px + env(safe-area-inset-left)); }
 #touchUI #lockBtn { left: calc(124px + env(safe-area-inset-left)); font-size: 10px; }
+#touchUI #adsBtn { right: calc(164px + env(safe-area-inset-right)); bottom: calc(52px + env(safe-area-inset-bottom)); font-size: 10px; }
+#touchUI #sightBtn { width: 40px; height: 40px; font-size: 9px; right: calc(158px + env(safe-area-inset-right)); bottom: calc(112px + env(safe-area-inset-bottom)); }

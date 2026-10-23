@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { buildGuns } from './guns';
+import { buildGuns, buildSights, SIGHT_MOUNT } from './guns.js';
+
 
 export const ROOT_SCALE = 0.86;
 export const HEAD_Y = { stand: 1.31, crouch: 0.83 };   // hit-test ke liye
@@ -86,14 +87,21 @@ function parts() {
       p(SPH, C.eye, -0.04, 0.135, 0.205, 0.026, 0.014, 0.012, 0, 0, -0.3),
     ]),
     guns: buildGuns(p, bake, { BOX, cyl }),
+    sights: buildSights(p, bake, { BOX, cyl }),
   };
   return G;
 }
 
 export const makeGun = (i) => new THREE.Mesh(parts().guns[i], bodyMat);
+export const sightGeo = (t) => parts().sights[t];
+export function makeSight(t, gun) {
+  const m = new THREE.Mesh(parts().sights[t], bodyMat);
+  m.position.set(0, SIGHT_MOUNT[gun][0], SIGHT_MOUNT[gun][1]);
+  return m;
+}
 export function makeFlash(i) {
   const f = new THREE.Mesh(SPH, flashMat);
-  f.scale.set(0.05, 0.05, 0.07);
+  f.scale.set(0.03, 0.03, 0.045);
   f.position.set(0, 0.035, MUZZLE[i]);
   f.visible = false;
   return f;
@@ -181,6 +189,7 @@ export function createCharacter() {
     const m = makeGun(i);
     const fl = makeFlash(i);
     m.add(fl);
+    m.add(makeSight(0, i));
     m.userData.flash = fl;
     m.visible = i === 0;
     gunMount.add(m);

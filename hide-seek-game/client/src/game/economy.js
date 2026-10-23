@@ -1,1 +1,1 @@
-export const eco = { owned: [true, false, false, false] };
+export const eco = { owned: [true, false, false, false], scopes: [true, false, false, false], scope: 0 };

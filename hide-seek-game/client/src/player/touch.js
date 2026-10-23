@@ -1,6 +1,7 @@
 import {
   input, toggle, setView, peekPress, peekRelease,
   togglePeekLock, setWeapon, nextWeapon, peekValue,
+  nextScope, setAds,
 } from './input.js';
 import { WEAPONS } from './weapons.js' 
 
@@ -46,7 +47,9 @@ export function setupTouch() {
     <button id="cam3">3</button>
     <button id="peekL">◀</button>
     <button id="peekR">▶</button>
-    <button id="lockBtn">LOCK</button>`;
+    <button id="lockBtn">LOCK</button>
+    <button id="adsBtn">SCOPE</button>
+    <button id="sightBtn">SIGHT</button>`;
   document.body.appendChild(ui);
 
   const $ = (id) => document.getElementById(id);
@@ -102,6 +105,7 @@ export function setupTouch() {
     $('cam2').classList.toggle('active', input.view === 2);
     $('cam3').classList.toggle('active', input.view === 3);
     $('gunBtn').textContent = WEAPONS[input.weapon].name;
+    $('adsBtn').classList.toggle('active', input.ads);
   };
   addEventListener('inputchange', sync);
   sync();
@@ -125,6 +129,8 @@ export function setupTouch() {
   press('cam3', () => setView(3));
   press('gunBtn', () => nextWeapon(1));
   press('lockBtn', togglePeekLock);
+  press('adsBtn', () => setAds(!input.ads));
+  press('sightBtn', () => nextScope());
   hold('fireBtn', () => { input.fire = true; sync(); }, () => { input.fire = false; sync(); });
   hold('peekL', () => peekPress(-1), () => peekRelease(-1));
   hold('peekR', () => peekPress(1), () => peekRelease(1));

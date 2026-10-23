@@ -157,4 +157,12 @@ exports.register = (socket) => {
     R.worker.postMessage({ t: 'buy', pid: p.pid, i: num(d && d.i) | 0 });
     ok(cb, { ok: true });
   });
+
+  socket.on('g:buyscope', (d, cb) => {
+    const p = me();
+    const R = roomOf(p);
+    if (!R || !allow(p, 'buy', 4, 4)) return ok(cb, { error: 'Dheere' });
+    R.worker.postMessage({ t: 'buyscope', pid: p.pid, i: num(d && d.i) | 0 });
+    ok(cb, { ok: true });
+  });
 };

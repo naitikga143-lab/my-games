@@ -4,7 +4,7 @@ import { toast } from '../ui/dom.js';
 import { fighters, createFighter, revive, on, emit } from './fighters.js';
 import { createCharacter } from '../player/model.js';
 import { me } from '../player/self.js';
-import { input, setWeapon } from '../player/input.js';
+import { input, setWeapon, setScope } from '../player/input.js';
 import { eco } from './economy.js';
 import { tracer } from './tracers.js';
 import { roomInfo } from './roomstate.js';
@@ -85,6 +85,11 @@ export function initNet(scene, controls) {
     const old = eco.owned.slice();
     eco.owned = d.owned.slice();
     d.owned.forEach((o, i) => { if (o && !old[i]) setWeapon(i); });   // nayi gun turant haath me
+    if (d.scopes) {
+      const os = eco.scopes.slice();
+      eco.scopes = d.scopes.slice();
+      d.scopes.forEach((o, i) => { if (o && !os[i]) setScope(i); });
+    }
   });
 
   socket.on('g:dmg', (d) => {

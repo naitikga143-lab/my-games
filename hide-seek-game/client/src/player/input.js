@@ -5,7 +5,7 @@ export const input = {
   run: false, crouch: false,
   view: 2,                       // 1 = peeche se, 2 = aankh se, 3 = saamne se
   peekLock: false, peekDir: 0, peekHeld: 0,
-  fire: false, weapon: 0,
+  fire: false, weapon: 0, ads: false,
 };
 export const keys = {};
 
@@ -38,7 +38,6 @@ export function togglePeekLock() {
 }
 export const peekValue = () => (input.peekLock ? input.peekDir : input.peekHeld);
 
-// sirf khareedi hui gun hi chun sakte ho
 export function setWeapon(i) {
   i = ((i % COUNT) + COUNT) % COUNT;
   if (!eco.owned[i]) return;
@@ -53,6 +52,21 @@ export function nextWeapon(d = 1) {
   }
 }
 
+export function setAds(v) { input.ads = !!v; changed(); }
+
+export function setScope(i) {
+  if (!eco.scopes[i]) return;
+  eco.scope = i;
+  changed();
+}
+
+export function nextScope() {
+  for (let k = 1; k <= 4; k++) {
+    const i = (eco.scope + k) % 4;
+    if (eco.scopes[i]) { eco.scope = i; changed(); return; }
+  }
+}
+
 addEventListener('keydown', (e) => {
   keys[e.code] = true;
   if (e.repeat) return;
@@ -61,10 +75,16 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyQ') peekPress(-1);
   if (e.code === 'KeyE') peekPress(1);
   if (e.code === 'KeyZ') togglePeekLock();
+  if (e.code === 'KeyB') nextScope();
   const di = ['Digit1', 'Digit2', 'Digit3', 'Digit4'].indexOf(e.code);
   if (di >= 0) {
     if (eco.owned[di]) setWeapon(di);
-    else dispatchEvent(new CustomEvent('shop:want', { detail: di }));   // shop ke paas ho to kharid lo
+    else dispatchEvent(new CustomEvent('shop:want', { detail: di }));
+  }
+  const si = ['Digit5', 'Digit6', 'Digit7', 'Digit8'].indexOf(e.code);
+  if (si >= 0) {
+    if (eco.scopes[si]) setScope(si);
+    else dispatchEvent(new CustomEvent('shop:wantscope', { detail: si }));
   }
 });
 addEventListener('keyup', (e) => {
@@ -74,11 +94,15 @@ addEventListener('keyup', (e) => {
 });
 
 document.addEventListener('mousedown', (e) => {
-  if (document.pointerLockElement && e.button === 0) input.fire = true;
+  if (!document.pointerLockElement) return;
+  if (e.button === 0) input.fire = true;
+  if (e.button === 2) setAds(true);
 });
 document.addEventListener('mouseup', (e) => {
   if (e.button === 0) input.fire = false;
+  if (e.button === 2) setAds(false);
 });
+document.addEventListener('contextmenu', (e) => { if (document.pointerLockElement) e.preventDefault(); });
 addEventListener('wheel', (e) => {
   if (document.pointerLockElement) nextWeapon(e.deltaY > 0 ? 1 : -1);
 });

@@ -7,7 +7,7 @@ import { placeProps } from '../world/props/layout.js';
 import { blockedAt } from '../world/collision.js';
 import { FLOOR_Y } from '../world/dims.js';
 import { fighters, createFighter, revive, shoot, on } from '../game/fighters.js';
-import { WEAPONS, BOT_GUN } from '../game/weapondata.js';
+import { WEAPONS, BOT_GUN, SCOPES } from '../game/weapondata.js';
 import { SHOPS, SHOP_RADIUS } from '../game/shopdata.js';
 import { createDirector } from './director.js';
 
@@ -35,7 +35,7 @@ function sendMe(h) {
   const f = h.f;
   post('me', {
     pid: h.pid, kills: f.kills, hs: f.headshots, pts: f.points, coins: f.coins,
-    owned: h.owned, hp: Math.round(f.hp), alive: f.alive, rs: respawn,
+    owned: h.owned, scopes: h.scopes, hp: Math.round(f.hp), alive: f.alive, rs: respawn,
   });
 }
 
@@ -60,7 +60,7 @@ function join(m) {
   f.team = m.team;
   f.human = true;
   const h = {
-    pid: m.pid, f, team: m.team, owned: [true, false, false, false],
+    pid: m.pid, f, team: m.team, owned: [true, false, false, false], scopes: [true, false, false, false],
     shotAt: 0, deadT: 0, last: performance.now(), view: { yw: 0, p: 0, l: 0, r: 0, w: 0 },
   };
   humans.set(m.pid, h);
@@ -132,6 +132,22 @@ function onBuy(m) {
     f.coins -= w.price;
     h.owned[i] = true;
     post('msg', { pid: h.pid, text: `${w.name} khareed li!` });
+  }
+  sendMe(h);
+}
+
+function onBuyScope(m) {
+  const h = humans.get(m.pid);
+  if (!h || !h.f.alive) return;
+  const i = fin(m.i) | 0, sc = SCOPES[i], f = h.f;
+  if (!sc) return;
+  if (!h.scopes[i]) {
+    const near = SHOPS.some((s) => Math.abs(f.pos.y - s.y) < 2 && Math.hypot(f.pos.x - s.x, f.pos.z - s.z) < SHOP_RADIUS + 0.6);
+    if (!near) return post('msg', { pid: h.pid, text: 'Shop ke paas jao' });
+    if (f.coins < sc.price) return post('msg', { pid: h.pid, text: `${sc.name} ke liye ${sc.price} coins chahiye` });
+    f.coins -= sc.price;
+    h.scopes[i] = true;
+    post('msg', { pid: h.pid, text: `${sc.name} scope khareed liya!` });
   }
   sendMe(h);
 }
@@ -208,6 +224,7 @@ parentPort.on('message', (m) => {
     case 'state': onState(m); break;
     case 'shoot': onShoot(m); break;
     case 'buy': onBuy(m); break;
+    case 'buyscope': onBuyScope(m); break;
     default: break;
   }
 });

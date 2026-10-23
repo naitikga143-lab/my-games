@@ -73,7 +73,7 @@ export function initVfx(scene, camera) {
   const ftex = new THREE.CanvasTexture(c);
   const sprites = [0, 1, 2, 3].map(() => {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: ftex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      map: ftex, transparent: true, opacity: 0.75, depthWrite: false, blending: THREE.AdditiveBlending,
     }));
     s.visible = false;
     scene.add(s);
@@ -83,13 +83,13 @@ export function initVfx(scene, camera) {
   function flash(x, y, z, big) {
     const L = lights[li++ % lights.length];
     L.l.position.set(x, y, z);
-    L.l.intensity = 30;
-    L.t = 0.06;
+    L.l.intensity = 9;
+    L.t = 0.045;
     const S = sprites[si++ % sprites.length];
     S.s.position.set(x, y, z);
-    S.s.scale.setScalar(big ? 0.9 : 0.5);
+    S.s.scale.setScalar(big ? 0.5 : 0.28);
     S.s.visible = true;
-    S.t = 0.05;
+    S.t = 0.04;
   }
 
   // ---------- gunshot awaaz (WebAudio, koi file nahi) ----------
@@ -129,6 +129,7 @@ export function initVfx(scene, camera) {
 
   // ---------- events ----------
   let shake = 0;
+  let shakeT = 0;
 
   on('shot', (s, o, d, w) => {
     const k = w === BOT_GUN ? 3 : Math.max(0, WEAPONS.indexOf(w));
@@ -138,7 +139,11 @@ export function initVfx(scene, camera) {
     flash(x, y, z, k === 2);
     const dist = Math.hypot(camera.position.x - o.x, camera.position.y - o.y, camera.position.z - o.z);
     sound(s === me ? 0.55 : 0.55 / (1 + dist * 0.25), k);
-    if (s === me) shake = Math.max(shake, k === 2 ? 0.05 : 0.018);
+    if (s === me) {
+      shake = Math.max(shake, k === 2 ? 0.02 : 0.007);
+      burst(o.x + 0.12, o.y - 0.12, o.z, 1, 0.9, 0.95, 0.75, 0.25, 1.4);   // khali casing
+    }
+    if (d) burst(x, y, z, 2, 0.35, 0.55, 0.55, 0.55, 0.6);                 // halka dhuaan
   });
 
   on('impact', (s, p, victim, head) => {
@@ -181,10 +186,11 @@ export function initVfx(scene, camera) {
       for (const S of sprites) {
         if (S.t > 0) { S.t -= dt; if (S.t <= 0) S.s.visible = false; }
       }
-      if (shake > 0.001) {
-        camera.rotation.x += rand(-1, 1) * shake;
-        camera.rotation.y += rand(-1, 1) * shake;
-        shake *= 0.85;
+      if (shake > 0.0005) {
+        shakeT += dt * 70;
+        camera.rotation.x += Math.sin(shakeT) * shake;
+        camera.rotation.y += Math.cos(shakeT * 1.3) * shake;
+        shake *= Math.exp(-dt * 14);
       }
     },
   };
