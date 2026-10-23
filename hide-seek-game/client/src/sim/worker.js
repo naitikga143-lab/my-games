@@ -95,6 +95,7 @@ function onState(m) {
   }
   f.pos.set(x, y, z);
   f.crouch = !!m.c;
+  f.yaw = fin(m.yaw);
   const wi = fin(m.w) | 0;
   h.view = { yw: r2(fin(m.yaw)), p: r2(fin(m.pitch)), l: r2(clamp(fin(m.l), -1, 1)), r: m.r ? 1 : 0, w: h.owned[wi] ? wi : 0 };
 }

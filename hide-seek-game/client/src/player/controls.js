@@ -12,7 +12,7 @@ import { SCOPES } from '../game/weapondata.js';
 import { eco } from '../game/economy.js';
 import { createViewGun } from './viewgun.js';
 
-const SPEED = 4.2, ACCEL = 9;
+const SPEED = 4.2, ACCEL = 12;
 const EYE = 1.3, EYE_CROUCH = 0.8;
 const TOP = 1.4, TOP_CROUCH = 0.9;
 const LEAN = 0.5, CAM_DIST = 2.4, FRONT_DIST = 1.7, CAM_PAD = 0.22;
@@ -81,7 +81,7 @@ export function createControls(camera, dom, avatar, spawnIdx = 0, net = false) {
   function update(dt) {
     const alive = me.alive;
     const zoom = SCOPES[eco.scope].zoom;
-    const sens = 1 / (1 + (zoom - 1) * adsK);          // scope me dheere ghoomta hai
+    const sens = 1 / (1 + (zoom - 1) * 0.45 * adsK);          // scope me dheere ghoomta hai
 
     yaw -= input.lookX * sens;
     pitch = Math.max(-1.4, Math.min(1.4, pitch - input.lookY * sens));
@@ -116,7 +116,7 @@ export function createControls(camera, dom, avatar, spawnIdx = 0, net = false) {
     const len = Math.hypot(f, s);
     if (len > 1) { f /= len; s /= len; }
     if (len < 0.1) { f = 0; s = 0; }
-    const mul = (crouch ? 0.5 : run ? 1.55 : 1) * (1 - 0.4 * adsK);
+    const mul = (crouch ? 0.8 : run ? 1.55 : 1) * (1 - 0.12 * adsK);
     const dirX = -Math.sin(yaw) * f + Math.cos(yaw) * s;
     const dirZ = -Math.cos(yaw) * f - Math.sin(yaw) * s;
     const k = Math.min(1, dt * ACCEL);
@@ -136,6 +136,7 @@ export function createControls(camera, dom, avatar, spawnIdx = 0, net = false) {
     feetY += (g - feetY) * Math.min(1, dt * 12);
     me.pos.set(pos.x, feetY, pos.z);
     me.crouch = crouch;
+    me.yaw = yaw;
 
     let target = alive ? peekValue() : 0;
     if (target && blockedAt(pos.x + rx * LEAN * target, pos.z + rz * LEAN * target, feetY, top)) target = 0;

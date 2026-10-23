@@ -26,7 +26,7 @@ export function initNet(scene, controls) {
     const model = createCharacter();
     model.group.visible = false;
     scene.add(model.group);
-    r = { f, model, tp: new THREE.Vector3(), yaw: 0, tyaw: 0, pitch: 0, lean: 0, run: false, speed: 0, seen: false, weapon: 0, deadFor: 0 };
+    r = { f, model, tp: new THREE.Vector3(), yaw: 0, tyaw: 0, pitch: 0, lean: 0, run: false, speed: 0, seen: false, weapon: 0, deadFor: e.a ? 0 : 99 };
     remotes.set(e.i, r);
     return r;
   }

@@ -79,6 +79,9 @@ export function buildNav() {
   for (const s of tableSpots) {
     const level = s.y > FLOOR_Y / 2 ? 1 : 0;
     if (blockedAt(s.x, s.z, s.y, 1.4, 0.32)) continue;
+    const _o = new THREE.Vector3(s.x, s.y + 1.3, s.z);
+    const _f = new THREE.Vector3(-Math.sin(s.yaw), 0, -Math.cos(s.yaw));
+    if (rayDistance(_o, _f, 12, level) < 4) continue;
     const n = add(s.x, s.y, s.z, level);
     n.face = s.yaw;
     const near = grid

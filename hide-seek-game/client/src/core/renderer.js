@@ -7,8 +7,8 @@ export function createRenderer() {
   document.body.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0b0806);
-  scene.fog = new THREE.Fog(0x0b0806, 10, 45);
+  scene.background = new THREE.Color(0x1a120a);
+  scene.fog = new THREE.Fog(0x1a120a, 14, 70);
 
   const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.05, 100);
 

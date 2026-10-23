@@ -7,6 +7,9 @@ import { groundY } from '../world/stairs.js';
 import { BOTS } from './config.js';
 import * as nav from './nav.js';
 
+// tuning yahin se: seconds / meters
+const T = { HIDE_MIN: 4, HIDE_MAX: 9, PEEK_MIN: 1.0, PEEK_MAX: 1.7, FLEE_DIST: 4, FLEE_CD: 6 };
+
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const rnd = (a, b) => a + Math.random() * (b - a);
 const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) * 2;
@@ -18,15 +21,16 @@ const stubModel = () => ({
   update() {}, setWeapon() {}, kick() {}, setDead() {},
 });
 
-// Table-cover shooter: table ke peeche chhupta hai, jhaank ke goli chalata hai,
-// player paas aaye to daudke doosri table ke peeche chala jaata hai.
+// Table-cover shooter: table ke peeche crouch, kabhi-kabhi jhaank ke goli.
+// Player 4m ke andar aaye to daudke doosri table ke peeche. Aur koi ghumna-phirna nahi.
 export class Bot {
   constructor(i, scene, headless = false) {
     this.headless = headless;
     this.f = createFighter({ id: 'bot' + i, name: BOTS.NAMES[i % BOTS.NAMES.length] + BOTS.TAG });
     this.f.isBot = true;
+    this.f.alive = false;
     if (headless) this.model = stubModel();
-    else { this.model = createCharacter(); scene.add(this.model.group); }
+    else { this.model = createCharacter(); scene.add(this.model.group); this.model.group.visible = false; }
     this.model.setWeapon(3);
 
     this.skill = rnd(BOTS.SKILL_MIN, BOTS.SKILL_MAX);
@@ -34,14 +38,14 @@ export class Bot {
     this.yaw = 0; this.pitch = 0; this.bodyYaw = 0; this.feetY = 0;
     this.vel = new THREE.Vector2(); this.des = new THREE.Vector2();
     this.path = []; this.pi = 0;
-    this.state = 'dead'; this.sub = 'wait'; this.t = 0; this.waitT = 3;
+    this.state = 'dead'; this.sub = 'wait'; this.t = 0; this.waitT = 5;
     this.peekDur = 1.4; this.shots = 0; this.burstTotal = 4;
     this.node = null; this.hideYaw = 0; this.alertYaw = 0; this.alertT = 0;
     this.vis = null; this.visT = 0; this.contact = false;
     this.lastSeen = new THREE.Vector3(); this.lastSeenT = -99;
     this.percT = Math.random() * 0.3; this.react = 0.6;
     this.aimOff = new THREE.Vector3(); this.aimOffT = 0; this.aimHead = false;
-    this.fireCool = 0; this.fleeCD = 0; this.fleeing = false; this.relocT = 30; this.hitT = -99;
+    this.fireCool = 0; this.fleeCD = 0; this.fleeing = false; this.hitT = -99;
     this.running = false; this.deadT = 0; this.now = 0; this.onEngage = null;
     this.stuckT = 0; this.stuckPos = new THREE.Vector2();
     this.st = { speed: 0, side: 0, dir: 1, crouch: false, run: false, lean: 0, pitch: 0, twist: 0 };
@@ -56,12 +60,6 @@ export class Bot {
   // ---------- spawn / death ----------
   spawn(avoid, node) {
     let n = node || nav.randomHide();
-    if (!node && avoid) {
-      for (let k = 0; k < 10; k++) {
-        n = nav.randomHide();
-        if (Math.hypot(n.x - avoid.x, n.z - avoid.z) > 10) break;
-      }
-    }
     this.release();
     revive(this.f, n.x, n.y, n.z);
     this.feetY = n.y;
@@ -69,11 +67,10 @@ export class Bot {
     this.node = n; nav.occ.add(n.i);
     this.hideYaw = n.face !== undefined ? n.face : Math.random() * 6.28;
     this.yaw = this.hideYaw; this.bodyYaw = this.yaw;
-    this.state = 'cover'; this.sub = 'wait'; this.t = 0; this.waitT = rnd(3, 7);
-    this.relocT = rnd(25, 50);
+    this.state = 'cover'; this.sub = 'wait'; this.t = 0; this.waitT = rnd(T.HIDE_MIN, T.HIDE_MAX);
     this.f.crouch = true;
     this.vis = null; this.visT = 0; this.contact = false; this.alertT = 0;
-    this.fleeing = false; this.fleeCD = 0; this.path = [];
+    this.fleeing = false; this.fleeCD = 0; this.path = []; this.shots = 0;
     this.deadT = 0;
     this.model.setDead(0);
     this.model.group.visible = true;
@@ -108,14 +105,14 @@ export class Bot {
 
   hear(shooter, pos) {
     const f = this.f;
-    if (!f.alive || shooter === f || (shooter && shooter.isBot)) return;
+    if (!f.alive || !shooter || shooter === f || shooter.isBot) return;
     const d = Math.hypot(pos.x - f.pos.x, pos.z - f.pos.z);
-    if (d > BOTS.HEAR || Math.random() > 0.5 + this.skill * 0.4) return;
+    const other = Math.abs(pos.y - 1.3 - this.feetY) > 3 ? 0.5 : 1;
+    if (d > BOTS.HEAR * other || Math.random() > 0.5 + this.skill * 0.4) return;
     this.alertTo(pos);
   }
 
-  // director "awaaz sunao" bolta hai: bot hilta nahi, bas jaldi jhaankta hai
-  goSearch(x, y, z) { this.alertTo({ x, y, z }); }
+  goSearch(x, y, z) { this.alertTo({ x, y, z }); }   // director ki awaaz: bot hilta nahi, bas jaldi jhaankta hai
 
   hurt(attacker) {
     this.hitT = this.now;
@@ -130,7 +127,7 @@ export class Bot {
   update(dt, ctx) {
     this.now = ctx.now;
     if (!this.f.alive) { this.updateDead(dt, ctx); return; }
-    this.t += dt; this.fireCool -= dt; this.fleeCD -= dt; this.alertT -= dt; this.relocT -= dt;
+    this.t += dt; this.fireCool -= dt; this.fleeCD -= dt; this.alertT -= dt;
     this.running = false;
     this.des.set(0, 0);
     this.perceive(dt);
@@ -153,7 +150,7 @@ export class Bot {
   perceive(dt) {
     this.percT -= dt;
     if (this.percT > 0) return;
-    const dtp = BOTS.PERCEPT_DT + Math.random() * 0.08;
+    const dtp = (this.sub === 'peek' ? 0.1 : BOTS.PERCEPT_DT) + Math.random() * 0.04;
     this.percT = dtp;
     const f = this.f;
     this.eye(_eye);
@@ -194,54 +191,35 @@ export class Bot {
   }
 
   // ---------- table ke peeche ----------
-  shouldFlee() {
-    const t = this.vis;
-    if (this.closest(3.5)) return true;                                  // bilkul paas aa gaya
-    if (t && Math.hypot(t.pos.x - this.f.pos.x, t.pos.z - this.f.pos.z) < 5.5) return true;
-    if (this.now - this.hitT < 1.2 && this.closest(8)) return true;     // maar bhi raha hai aur paas bhi hai
-    return false;
-  }
-
   flee() {
-    const t = this.vis || this.closest(12);
+    const t = this.closest(T.FLEE_DIST + 2) || this.vis;
     const from = t ? t.pos : this.lastSeen;
-    this.fleeCD = rnd(4, 7);
+    this.fleeCD = T.FLEE_CD + rnd(0, 3);
     const n = nav.findTableCover(this.f.pos, from, this.node);
-    if (n && this.pathTo(n)) { this.goTo(n, true); return; }
-    this.startPeek();   // koi jagah nahi: khade hokar lado
+    if (n && this.pathTo(n)) this.goTo(n);
+    else this.startPeek();   // koi jagah nahi: wahin se lado
   }
 
-  goTo(n, fleeing) {
+  goTo(n) {
     this.release();
     this.node = n; nav.occ.add(n.i);
     this.state = 'move';
-    this.fleeing = fleeing;
+    this.fleeing = true;
     this.f.crouch = false;
-  }
-
-  relocate() {
-    let n = null;
-    for (let k = 0; k < 8; k++) {
-      const c = nav.randomHide();
-      if (c && c !== this.node && !nav.occ.has(c.i)) { n = c; break; }
-    }
-    if (n && this.pathTo(n)) this.goTo(n, false);
-    else this.relocT = rnd(15, 30);
   }
 
   arrive() {
     this.state = 'cover'; this.sub = 'wait'; this.t = 0;
-    this.waitT = this.fleeing ? rnd(3, 6) : rnd(2, 5);
+    this.waitT = rnd(2.5, 5);
     this.fleeing = false;
     this.hideYaw = this.node && this.node.face !== undefined ? this.node.face : this.yaw;
     this.f.crouch = true;
-    this.relocT = rnd(25, 50);
     this.path = [];
   }
 
   doMove(dt) {
     this.f.crouch = false;
-    const r = this.followPath(this.fleeing ? BOTS.RUN : BOTS.WALK, dt);
+    const r = this.followPath(BOTS.RUN, dt);
     this.faceMove(dt);
     if (r !== 'moving') this.arrive();
   }
@@ -249,10 +227,11 @@ export class Bot {
   startPeek() {
     this.state = 'cover';
     this.sub = 'peek'; this.t = 0;
-    this.peekDur = rnd(1.0, 1.8);
+    this.peekDur = rnd(T.PEEK_MIN, T.PEEK_MAX);
     this.shots = 0;
     this.burstTotal = Math.floor(rnd(3, 7));
     this.aimOffT = 0;
+    this.percT = 0;
     this.newReact();
   }
 
@@ -260,20 +239,20 @@ export class Bot {
     const fired = this.shots > 0;
     this.sub = 'wait'; this.t = 0;
     this.f.crouch = true;
-    this.waitT = fired ? rnd(1.4, 3.0) : rnd(2.5, 5.5);
+    this.waitT = fired ? rnd(2.5, 5) : rnd(T.HIDE_MIN, T.HIDE_MAX);
     this.shots = 0;
+    this.contact = false;
   }
 
   doCover(dt) {
     const f = this.f;
-    if (this.fleeCD <= 0 && this.shouldFlee()) { this.flee(); return; }
+    if (this.fleeCD <= 0 && this.closest(T.FLEE_DIST)) { this.flee(); return; }
 
     if (this.sub === 'wait') {
       f.crouch = true;
       this.faceYaw(this.alertT > 0 ? this.alertYaw : this.hideYaw, dt, 4);
       const eager = this.alertT > 0 ? 0.45 : 1;
-      if (this.t > this.waitT * eager) this.startPeek();
-      else if (this.relocT <= 0 && this.alertT <= 0 && !this.vis) this.relocate();   // bahut kam
+      if (this.t > this.waitT * eager || (this.vis && this.visT > 0.35)) this.startPeek();
       return;
     }
     this.doPeek(dt);
@@ -308,7 +287,7 @@ export class Bot {
     this.pitch += (wantPitch - this.pitch) * Math.min(1, dt * rate);
     const err = Math.abs(wrap(want - this.yaw));
 
-    if (BOTS.FIRE && this.visT >= this.react * 0.5 && this.fireCool <= 0 && err < 0.12 + (1 - this.skill) * 0.1) {
+    if (BOTS.FIRE && this.visT >= this.react * 0.35 && this.fireCool <= 0 && err < 0.12 + (1 - this.skill) * 0.1) {
       _org.copy(_eye);
       const cp = Math.cos(this.pitch);
       _dir.set(-Math.sin(this.yaw) * cp, Math.sin(this.pitch), -Math.cos(this.yaw) * cp);
@@ -324,7 +303,7 @@ export class Bot {
     if (this.shots >= this.burstTotal || this.t > this.peekDur + 1.6) this.endPeek();
   }
 
-  // ---------- rasta ----------
+  // ---------- rasta (sirf bhaagte waqt) ----------
   pathTo(n) {
     this.path = []; this.pi = 0;
     if (!n) return false;
@@ -339,7 +318,7 @@ export class Bot {
     return true;
   }
 
-  followPath(speed, dt) {
+  followPath(speed) {
     if (this.pi >= this.path.length) return 'none';
     const p = this.f.pos;
     let n = nav.nodes[this.path[this.pi]];
@@ -366,6 +345,7 @@ export class Bot {
     const k = Math.min(1, dt * 8);
     this.vel.x += (this.des.x - this.vel.x) * k;
     this.vel.y += (this.des.y - this.vel.y) * k;
+    if (this.vel.lengthSq() < 1e-4 && this.des.lengthSq() === 0) this.vel.set(0, 0);
     const nx = p.x + this.vel.x * dt, nz = p.z + this.vel.y * dt;
     if (!blockedAt(nx, p.z, this.feetY, top)) p.x = nx; else this.vel.x = 0;
     if (!blockedAt(p.x, nz, this.feetY, top)) p.z = nz; else this.vel.y = 0;

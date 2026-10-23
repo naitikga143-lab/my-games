@@ -83,6 +83,7 @@ function pellet(shooter, origin, dir, w) {
   for (const f of fighters) {
     if (f === shooter || !f.alive) continue;
     if (shooter.team && f.team === shooter.team) continue;   // teammate ko goli nahi lagti
+    if (shooter.isBot && f.isBot) continue;
     headCenter(f, _hc);
     const th = raySphere(origin, dir, _hc, R_HEAD);
     const tb = rayBody(origin, dir, f, _hc.y - 0.12);
