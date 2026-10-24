@@ -127,6 +127,11 @@ export class Bot {
   update(dt, ctx) {
     this.now = ctx.now;
     if (!this.f.alive) { this.updateDead(dt, ctx); return; }
+    if (this.f.hidden) {                       // shuru ke 20 second: bas chhupo
+      this.t = 0; this.f.crouch = true; this.des.set(0, 0);
+      this.move(dt); this.animate(dt, ctx);
+      return;
+    }
     this.t += dt; this.fireCool -= dt; this.fleeCD -= dt; this.alertT -= dt;
     this.running = false;
     this.des.set(0, 0);
@@ -159,7 +164,7 @@ export class Bot {
     let best = null, bd = Infinity;
 
     for (const o of fighters) {
-      if (o === f || !o.alive || o.isBot) continue;
+      if (o === f || !o.alive || o.isBot || o.hidden) continue;
       const dx = o.pos.x - f.pos.x, dz = o.pos.z - f.pos.z;
       const d = Math.hypot(dx, dz);
       if (d > BOTS.SIGHT || d >= bd) continue;
@@ -374,8 +379,8 @@ export class Bot {
     if (Math.abs(tw) > 1.2) { this.bodyYaw = this.yaw - Math.sign(tw) * 1.2; tw = Math.sign(tw) * 1.2; }
 
     const near = Math.hypot(f.pos.x - ctx.camPos.x, f.pos.z - ctx.camPos.z) < 40;
-    g.visible = near;
-    if (!near) return;
+    g.visible = near && !f.hidden;
+    if (!g.visible) return;
 
     g.position.copy(f.pos);
     g.rotation.y = this.bodyYaw + Math.PI;

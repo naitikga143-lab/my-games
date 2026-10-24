@@ -11,7 +11,7 @@ import { WEAPONS, BOT_GUN, SCOPES } from '../game/weapondata.js';
 import { SHOPS, SHOP_RADIUS } from '../game/shopdata.js';
 import { createDirector } from './director.js';
 
-const { total, respawn, respawnMs } = workerData;
+const { total, respawn, respawnMs, grace = 20 } = workerData;
 const post = (t, d) => parentPort.postMessage({ t, d });
 const r2 = (v) => Math.round(v * 100) / 100;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -23,7 +23,7 @@ buildHall(scene);
 buildRooms(scene);
 buildStairs(scene);
 placeProps(scene);
-const director = createDirector(scene, total);
+const director = createDirector(scene, total, grace);
 
 const humans = new Map();   // pid -> H
 const byF = new Map();      // fighter -> H
@@ -40,17 +40,18 @@ function sendMe(h) {
 }
 
 function spawn(h) {
+  const y = director.level() ? FLOOR_Y : 0;
   let x = 0, z = 12;
-  for (let k = 0; k < 8; k++) {
+  for (let k = 0; k < 10; k++) {
     const s = SPAWNS[(h.team - 1 + k) % 4];
     x = s[0] + (Math.random() - 0.5) * 2;
     z = s[1] + (Math.random() - 0.5) * 2;
-    if (!blockedAt(x, z, 0, 1.4, 0.45)) break;
+    if (!blockedAt(x, z, y, 1.4, 0.45)) break;
   }
-  revive(h.f, x, 0, z);
+  revive(h.f, x, y, z);
   h.last = performance.now();
   h.deadT = 0;
-  post('respawn', { pid: h.pid, x, y: 0, z });
+  post('respawn', { pid: h.pid, x, y, z });
   sendMe(h);
 }
 
@@ -61,7 +62,7 @@ function join(m) {
   f.human = true;
   const h = {
     pid: m.pid, f, team: m.team, owned: [true, false, false, false], scopes: [true, false, false, false],
-    shotAt: 0, deadT: 0, last: performance.now(), view: { yw: 0, p: 0, l: 0, r: 0, w: 0 },
+    shotAt: 0, graceUntil: performance.now() + grace * 1000, deadT: 0, last: performance.now(), view: { yw: 0, p: 0, l: 0, r: 0, w: 0 },
   };
   humans.set(m.pid, h);
   byF.set(f, h);
@@ -103,7 +104,7 @@ function onState(m) {
 // ---- shooting check ----
 function onShoot(m) {
   const h = humans.get(m.pid);
-  if (!h || !h.f.alive) return;
+  if (!h || !h.f.alive || h.f.hidden) return;
   const i = fin(m.w) | 0, w = WEAPONS[i];
   if (!w || !h.owned[i]) return;                                  // gun kharidi hi nahi
   const now = performance.now();
@@ -176,16 +177,18 @@ on('kill', (v, a, head) => {
 
 // ---- snapshot ----
 function snap() {
-  const l = [];
+  const l = [], now = performance.now();
   for (const h of humans.values()) {
     const f = h.f, v = h.view;
     l.push({ i: h.pid, n: f.name, t: h.team, x: r2(f.pos.x), y: r2(f.pos.y), z: r2(f.pos.z),
-      yw: v.yw, p: v.p, l: v.l, c: f.crouch ? 1 : 0, r: v.r, w: v.w, a: f.alive ? 1 : 0, hp: Math.round(f.hp) });
+      yw: v.yw, p: v.p, l: v.l, c: f.crouch ? 1 : 0, r: v.r, w: v.w, a: f.alive ? 1 : 0, hp: Math.round(f.hp),
+      h: f.hidden ? 1 : 0, gl: Math.ceil(Math.max(0, (h.graceUntil - now) / 1000)) });
   }
   for (const b of director.bots()) {
     const f = b.f;
     l.push({ i: f.id, n: f.name, t: 0, b: 1, x: r2(f.pos.x), y: r2(f.pos.y), z: r2(f.pos.z),
-      yw: r2(b.yaw), p: r2(b.pitch), l: 0, c: f.crouch ? 1 : 0, r: b.running ? 1 : 0, w: 3, a: f.alive ? 1 : 0, hp: Math.round(f.hp) });
+      yw: r2(b.yaw), p: r2(b.pitch), l: 0, c: f.crouch ? 1 : 0, r: b.running ? 1 : 0, w: 3,
+      a: f.alive ? 1 : 0, hp: Math.round(f.hp), h: f.hidden ? 1 : 0 });
   }
   post('snap', { l, bl: director.left() });
 }
@@ -201,13 +204,13 @@ function checkClear() {
 }
 
 let last = performance.now(), snapAcc = 0;
-setInterval(() => {
+function tick() {
   const now = performance.now();
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
-  if (respawn) {
-    for (const h of humans.values()) {
-      if (h.f.alive) continue;
+  for (const h of humans.values()) {
+    h.f.hidden = now < h.graceUntil;                 // shuru ke 20 second koi dikhta nahi
+    if (respawn && !h.f.alive) {
       h.deadT += dt;
       if (h.deadT * 1000 > respawnMs) spawn(h);
     }
@@ -216,6 +219,9 @@ setInterval(() => {
   snapAcc += dt;
   if (snapAcc >= 0.08) { snapAcc = 0; snap(); }
   checkClear();
+}
+setInterval(() => {
+  try { tick(); } catch (e) { console.error('[sim tick]', e && e.stack ? e.stack : e); }
 }, 33);
 
 parentPort.on('message', (m) => {

@@ -45,8 +45,9 @@ export function initNet(scene, controls) {
   socket.on('g:snap', ({ l, bl }) => {
     roomInfo.botsLeft = bl;
     for (const e of l) {
-      if (e.i === me.id) continue;
+      if (e.i === me.id) { roomInfo.grace = e.h ? e.gl : 0; continue;}
       const r = ensure(e);
+      r.f.hidden = !!e.h;
       r.f.name = e.n; r.f.team = e.t;
       r.tp.set(e.x, e.y, e.z);
       r.tyaw = e.yw; r.pitch = e.p || 0; r.lean = e.l || 0; r.run = !!e.r;
@@ -145,7 +146,7 @@ export function initNet(scene, controls) {
         r.yaw += wrap(r.tyaw - r.yaw) * k;
         r.deadFor = r.f.alive ? 0 : r.deadFor + dt;
         const g = r.model.group;
-        g.visible = r.seen && (r.f.alive || r.deadFor < 4);
+        g.visible = r.seen && !r.f.hidden && (r.f.alive || r.deadFor < 4);
         g.position.copy(r.f.pos);
         g.rotation.y = r.yaw + Math.PI;
         st.speed = r.speed; st.crouch = r.f.crouch; st.run = r.run;

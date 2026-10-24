@@ -1,16 +1,16 @@
-import * as THREE from 'three';
 import { Bot } from './bot.js';
+import * as THREE from 'three';
 import { BOTS } from './config.js';
-import { buildNav, coverNodes, occ, getHideNodes } from './nav.js';
+import { buildNav, coverNodes, occ, getHideNodes, exposed } from './nav.js';
 import { on } from '../game/fighters.js';
-import { losClear, levelOf } from '../world/collision.js';
+import { levelOf } from '../world/collision.js';
 
 const ACTIVE = 4;
 const rnd = (a, b) => a + Math.random() * (b - a);
-const _a = new THREE.Vector3(), _b = new THREE.Vector3();
+const _a = new THREE.Vector3();
 
-// total bots ka pehla half ground floor pe, wo sab marne ke baad doosra half upar wali floor pe
-export function createSquad(scene, total, { headless, humans, camPos }) {
+// pehla half bots ground floor pe, wo sab marne ke baad doosra half upar wali floor pe
+export function createSquad(scene, total, { headless, humans, camPos, grace = 20 }) {
   buildNav();
   const covers = coverNodes.filter((n) => n.links.length);
   const spots = covers.length >= 6 ? covers : getHideNodes();
@@ -31,7 +31,7 @@ export function createSquad(scene, total, { headless, humans, camPos }) {
     b.newReact();
   }
 
-  // cover ke peeche, player se door, player ko dikhe nahi
+  // table ke peeche, player se door, aur player ko bot ka koi hissa (side/back) na dikhe
   function pickSpawn(level, hs, relax) {
     const here = hs.filter((h) => levelOf(h.pos.y) === level);
     const cand = [];
@@ -39,22 +39,9 @@ export function createSquad(scene, total, { headless, humans, camPos }) {
       if (n.level !== level || occ.has(n.i)) continue;
       let ok = true;
       for (const h of here) {
-        const d = Math.hypot(n.x - h.pos.x, n.z - h.pos.z);
-        if (d < (relax ? 8 : 11)) { ok = false; break; }
+        if (Math.hypot(n.x - h.pos.x, n.z - h.pos.z) < (relax ? 8 : 11)) { ok = false; break; }
         _a.set(h.pos.x, h.pos.y + (h.crouch ? 0.8 : 1.3), h.pos.z);
-        _b.set(n.x, n.y + 0.8, n.z);
-        if (losClear(_a, _b, level)) { ok = false; break; }          // crouch hua bot dikhna nahi chahiye
-        if (!relax) {
-          _b.y = n.y + 1.3;
-          if (losClear(_a, _b, level)) {                              // is jagah ka khula hissa player ko dikhta hai
-            let inView = true;
-            if (h.yaw !== undefined) {
-              const dot = (-Math.sin(h.yaw) * (n.x - h.pos.x) - Math.cos(h.yaw) * (n.z - h.pos.z)) / d;
-              inView = dot > 0.4;
-            }
-            if (inView || d < 16) { ok = false; break; }
-          }
-        }
+        if (exposed(_a, n, level, !relax)) { ok = false; break; }
       }
       if (ok) cand.push(n);
     }
@@ -75,7 +62,6 @@ export function createSquad(scene, total, { headless, humans, camPos }) {
     lastSpawn = now;
   }
 
-  // ek bot ladai shuru kare to baaki bots jaldi jhaankte hain
   function alert(b, target) {
     for (const s of slots) {
       const o = s.bot;
@@ -101,18 +87,22 @@ export function createSquad(scene, total, { headless, humans, camPos }) {
     s.bot.die();
     s.active = false;
     killed++;
-    s.nextAt = now + rnd(3, 6);     // agla bot thodi der baad kahin chhupa hua "nikalta" hai
+    s.nextAt = now + rnd(3, 6);
     s.since = now;
   });
 
   return {
     left: () => total - killed,
+    level: () => phaseLevel(),
+    grace: () => Math.max(0, grace - now),
     bots: () => slots.map((s) => s.bot),
     update(dt) {
       const hs = humans();
       if (!hs.length) return;
       now += dt;
       ctx.now = now;
+      const hid = now < grace;                         // shuru ke 20 second bots dikhte nahi
+      for (const s of slots) s.bot.f.hidden = hid;
 
       if (!started) {
         started = true;
@@ -123,7 +113,13 @@ export function createSquad(scene, total, { headless, humans, camPos }) {
         }
       }
       for (const s of slots) {
-        s.bot.update(dt, ctx);
+        let bad = false;
+        try { s.bot.update(dt, ctx); } catch (e) { console.error('[bot]', e && e.stack ? e.stack : e); bad = true; }
+        const p = s.bot.f.pos;
+        if ((bad || !Number.isFinite(p.x + p.y + p.z)) && s.bot.f.alive) {
+          const node = pickSpawn(phaseLevel(), hs, true);   // kharab bot ko naye table pe bhej do
+          if (node) s.bot.spawn(null, node);
+        }
         if (!s.active && canSpawn() && now >= s.nextAt && now - lastSpawn > 2) {
           const node = pickSpawn(phaseLevel(), hs, now - s.since > 10);
           if (node) spawnInto(s, node);

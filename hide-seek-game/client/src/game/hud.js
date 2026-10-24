@@ -85,7 +85,7 @@ export function initHud({ onExit } = {}) {
       const txt = `${roomInfo.botsLeft ? 'BOTS ' + roomInfo.botsLeft : 'ROOM CLEAR'} · KILLS ${me.kills} · HS ${me.headshots} · $${me.coins}`;
       if (txt !== lastInfo) { info.textContent = txt; lastInfo = txt; }
 
-      const b = roomInfo.banner;
+      const b = roomInfo.grace > 0 ? `HIDE! ${Math.ceil(roomInfo.grace)}s` : roomInfo.banner;
       if (b !== lastBanner) { banner.textContent = b; lastBanner = b; }
 
       if (me.hp !== lastHp) {

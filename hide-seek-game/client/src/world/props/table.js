@@ -22,5 +22,5 @@ export function makeTable(parent, x, y, z, rotY = 0) {
   addCollider(plate);
 
   const s = Math.sin(rotY), c = Math.cos(rotY);
-  tableSpots.push({ x: x - 0.8 * s, y, z: z - 0.8 * c, yaw: rotY + Math.PI });
+  tableSpots.push({ x: x - 0.55 * s, y, z: z - 0.55 * c, yaw: rotY + Math.PI });
 }

@@ -10,3 +10,8 @@ if (new URLSearchParams(location.search).get('dev') === 'game') {
 }
 
 //cd hide-seek-game/client
+//floor appearence
+//hiding behind the table but facing the player
+//bot power minimizing
+//scope handling
+//scope background

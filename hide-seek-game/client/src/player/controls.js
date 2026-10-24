@@ -11,6 +11,7 @@ import { GAME } from '../game/config.js';
 import { SCOPES } from '../game/weapondata.js';
 import { eco } from '../game/economy.js';
 import { createViewGun } from './viewgun.js';
+import { roomInfo } from '../game/roomstate.js';
 
 const SPEED = 4.2, ACCEL = 12;
 const EYE = 1.3, EYE_CROUCH = 0.8;
@@ -47,10 +48,11 @@ export function createControls(camera, dom, avatar, spawnIdx = 0, net = false) {
 
   function respawn() {
     const [x, z] = SPAWNS[Math.floor(Math.random() * SPAWNS.length)];
+    const y = roomInfo.level ? FLOOR_Y : 0;
     pos.set(x, 0, z);
-    feetY = 0; lean = 0;
+    feetY = y; lean = 0;
     vel.set(0, 0);
-    revive(me, x, 0, z);
+    revive(me, x, y, z);
   }
 
   function camHits(p) {
@@ -81,7 +83,7 @@ export function createControls(camera, dom, avatar, spawnIdx = 0, net = false) {
   function update(dt) {
     const alive = me.alive;
     const zoom = SCOPES[eco.scope].zoom;
-    const sens = 1 / (1 + (zoom - 1) * 0.45 * adsK);          // scope me dheere ghoomta hai
+    const sens = 1 - (1 - Math.pow(zoom, -0.9)) * adsK;          // scope me dheere ghoomta hai
 
     yaw -= input.lookX * sens;
     pitch = Math.max(-1.4, Math.min(1.4, pitch - input.lookY * sens));
@@ -160,7 +162,7 @@ export function createControls(camera, dom, avatar, spawnIdx = 0, net = false) {
       const amt = Math.min(1, speedNow) * (1 - adsK);
       const sway = Math.cos(bobPhase) * 0.012 * amt;
       const bobY = -Math.abs(Math.sin(bobPhase)) * 0.035 * amt;
-      const br = adsK * (zoom >= 2 ? 0.0008 * zoom : 0.0002);       // scope me halka sans ka hilna
+      const br = adsK * (zoom >= 2 ? 0.0003 * zoom : 0);       // scope me halka sans ka hilna
       camera.position.set(hx + rx * sway, hy + bobY, hz + rz * sway);
       camera.rotation.set(
         pitch + Math.sin(breath * 1.7) * br,
@@ -187,8 +189,8 @@ export function createControls(camera, dom, avatar, spawnIdx = 0, net = false) {
       aimD.z += (Math.random() - 0.5) * 2 * sp;
       aimD.normalize();
       shoot(me, aimO, aimD, w);
-      kickLeft += w.kick * (1 - 0.35 * adsK);
-      yaw -= (Math.random() - 0.5) * w.kick * 0.5;
+      kickLeft += w.kick * (1 - 0.6 * adsK);
+      yaw -= (Math.random() - 0.5) * w.kick * 0.5 * (1 - adsK);
       avatar.kick();
       viewGun.kick();
     }

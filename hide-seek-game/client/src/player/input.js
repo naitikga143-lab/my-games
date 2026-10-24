@@ -21,22 +21,14 @@ export function toggle(name) {
 export function setView(n) { input.view = n; changed(); }
 export const cycleView = () => setView(input.view === 2 ? 1 : input.view === 1 ? 3 : 2);
 
+// ek baar dabao = us side lock. Wahi dobara = wapas seedha. Doosri side dabao = side badal jaati hai.
 export function peekPress(dir) {
-  if (input.peekLock) input.peekDir = input.peekDir === dir ? 0 : dir;
-  else input.peekHeld = dir;
+  input.peekDir = input.peekDir === dir ? 0 : dir;
   changed();
 }
-export function peekRelease(dir) {
-  if (!input.peekLock && input.peekHeld === dir) input.peekHeld = 0;
-  changed();
-}
-export function togglePeekLock() {
-  input.peekLock = !input.peekLock;
-  input.peekDir = 0;
-  input.peekHeld = 0;
-  changed();
-}
-export const peekValue = () => (input.peekLock ? input.peekDir : input.peekHeld);
+export const peekRelease = () => {};
+export const togglePeekLock = () => {};
+export const peekValue = () => input.peekDir;
 
 export function setWeapon(i) {
   i = ((i % COUNT) + COUNT) % COUNT;

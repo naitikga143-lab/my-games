@@ -9,5 +9,5 @@ module.exports = {
   GRACE_SECONDS: 20,
   ROOM_BOTS: { 1: 16, 2: 18, 3: 20, 4: 24 },
   RESPAWN: true,          // testing: marne ke baad respawn. Asli match me false kar dena
-  RESPAWN_SECONDS: 5,
+  RESPAWN_SECONDS: 20,
 };

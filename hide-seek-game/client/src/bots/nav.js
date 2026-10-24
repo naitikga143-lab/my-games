@@ -238,11 +238,25 @@ export function findTableCover(pos, threat, skip) {
     const d = Math.hypot(n.x - pos.x, n.z - pos.z);
     if (d < 3 || d > 24) continue;
     if (Math.hypot(n.x - threat.x, n.z - threat.z) < 6) continue;
-    _tn.set(n.x, n.y + 0.8, n.z);
-    if (losClear(_te, _tn, level)) continue;
+    if (exposed(_te, n, level, true)) continue;
     const toward = ((n.x - pos.x) * (threat.x - pos.x) + (n.z - pos.z) * (threat.z - pos.z)) / (d * tl);
     const s = d + Math.random() * 4 + (toward > 0.3 ? 15 : 0);
     if (s < bs) { bs = s; best = n; }
   }
   return best;
+}
+
+// kya is table-spot pe baithe crouch bot ka koi bhi hissa (beech, dono kandhe, sir/pair) eye ko dikhta hai?
+const _pt = new THREE.Vector3();
+export function exposed(eye, n, level, full = true) {
+  const f = n.face ?? 0;
+  const cx = Math.cos(f), cz = -Math.sin(f);
+  const offs = full ? [-0.3, 0, 0.3] : [0];
+  for (const o of offs) {
+    for (const h of [0.3, 0.9]) {
+      _pt.set(n.x + cx * o, n.y + h, n.z + cz * o);
+      if (losClear(eye, _pt, level)) return true;
+    }
+  }
+  return false;
 }

@@ -8,6 +8,7 @@ export function createBots(scene, camera, total = BOTS.COUNT) {
   roomInfo.botsLeft = total;
   const squad = createSquad(scene, total, {
     headless: false,
+    grace: 20,
     humans: () => (me.alive ? [me] : []),
     camPos: camera.position,
   });
@@ -15,6 +16,8 @@ export function createBots(scene, camera, total = BOTS.COUNT) {
     update(dt) {
       squad.update(dt);
       roomInfo.botsLeft = squad.left();
+      roomInfo.level = squad.level();
+      roomInfo.grace = squad.grace();
     },
   };
 }

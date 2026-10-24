@@ -24,19 +24,33 @@ function allow(p, kind, perSec, burst) {
   return true;
 }
 
-function open(key, game) {
+function startWorker(R) {
   const worker = new Worker(WORKER, {
     workerData: {
-      room: game.room,
-      total: cfg.ROOM_BOTS[game.room],
+      room: R.room,
+      total: cfg.ROOM_BOTS[R.room],
       respawn: cfg.RESPAWN,
       respawnMs: cfg.RESPAWN_SECONDS * 1000,
+      grace: cfg.GRACE_START,
     },
   });
-  const R = { key, code: game.code, room: game.room, worker, members: new Map(), closeT: null };
-  worker.on('message', (m) => onMsg(R, m));
-  worker.on('error', (e) => { console.error('[sim]', key, e); rooms.delete(key); });
-  worker.on('exit', () => { if (rooms.get(key) === R) rooms.delete(key); });
+  R.worker = worker;
+  worker.on('message', (m) => { if (R.worker === worker) onMsg(R, m); });
+  worker.on('error', (e) => {
+    console.error('[sim]', R.key, e);
+    if (R.worker !== worker) return;
+    if (++R.crashes > 5 || !R.members.size) { rooms.delete(R.key); return; }
+    startWorker(R);                                   // crash ke baad naya worker
+    for (const p of R.members.values()) {
+      R.worker.postMessage({ t: 'join', pid: p.pid, name: p.name, team: p.game.team });
+    }
+  });
+  worker.on('exit', () => { if (R.worker === worker && rooms.get(R.key) === R) rooms.delete(R.key); });
+}
+
+function open(key, game) {
+  const R = { key, code: game.code, room: game.room, worker: null, members: new Map(), closeT: null, crashes: 0 };
+  startWorker(R);
   rooms.set(key, R);
   return R;
 }

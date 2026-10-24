@@ -47,7 +47,7 @@ export function setupTouch() {
     <button id="cam3">3</button>
     <button id="peekL">◀</button>
     <button id="peekR">▶</button>
-    <button id="lockBtn">LOCK</button>
+    <button id="fireBtn2">FIRE</button>
     <button id="adsBtn">SCOPE</button>
     <button id="sightBtn">SIGHT</button>`;
   document.body.appendChild(ui);
@@ -98,7 +98,7 @@ export function setupTouch() {
     $('runBtn').classList.toggle('active', input.run);
     $('crouchBtn').classList.toggle('active', input.crouch);
     $('fireBtn').classList.toggle('active', input.fire);
-    $('lockBtn').classList.toggle('active', input.peekLock);
+    $('fireBtn2').classList.toggle('active', input.fire);
     $('peekL').classList.toggle('active', pk === -1);
     $('peekR').classList.toggle('active', pk === 1);
     $('cam1').classList.toggle('active', input.view === 1);
@@ -128,10 +128,10 @@ export function setupTouch() {
   press('cam2', () => setView(2));
   press('cam3', () => setView(3));
   press('gunBtn', () => nextWeapon(1));
-  press('lockBtn', togglePeekLock);
   press('adsBtn', () => setAds(!input.ads));
   press('sightBtn', () => nextScope());
   hold('fireBtn', () => { input.fire = true; sync(); }, () => { input.fire = false; sync(); });
-  hold('peekL', () => peekPress(-1), () => peekRelease(-1));
-  hold('peekR', () => peekPress(1), () => peekRelease(1));
+  press('peekL', () => peekPress(-1));
+  press('peekR', () => peekPress(1));
+  hold('fireBtn2', () => { input.fire = true; sync(); }, () => { input.fire = false; sync(); });
 }
