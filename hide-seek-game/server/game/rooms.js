@@ -4,15 +4,14 @@ const cfg = require('../config');
 const players = require('../lobby/players');
 const L = require('../lobby/lobbies');
 const S = require('../lobby/service');
-const start = require('../lobby/start');
 
 const WORKER = path.join(__dirname, '../../client/src/sim/worker.js');
 const rooms = new Map();
+const rounds = new Map();   // lobby code -> { list: [scores] }
 let io;
 
 const num = (v, d = 0) => (Number.isFinite(+v) ? +v : d);
 
-// token bucket: p.rl[kind] = { t, n }
 function allow(p, kind, perSec, burst) {
   const now = Date.now();
   p.rl = p.rl || {};
@@ -24,14 +23,84 @@ function allow(p, kind, perSec, burst) {
   return true;
 }
 
+// ---------- round khatam hone ka hisaab ----------
+function maybeFinalize(code) {
+  const open = [...rooms.values()].filter((r) => r.code === code);
+  if (open.some((r) => !r.ended)) return;
+  const rd = rounds.get(code);
+  if (!rd) return;
+  rounds.delete(code);
+
+  const rank = rd.list
+    .sort((a, b) => (b.kills - a.kills) || (b.hs - a.hs))
+    .map((s, i) => ({ ...s, pos: i + 1 }));
+  const payload = { rank: rank.slice(0, 8), top: rank.slice(0, 4).map((s) => s.pid) };
+
+  for (const r of open) {
+    io.to(r.key).emit('g:round', payload);
+    for (const p of r.members.values()) p.game = null;
+  }
+  const lobby = L.get(code);
+  if (lobby) {
+    lobby.roundOn = false;
+    lobby.running = false;
+    for (const t of Object.values(lobby.teams)) t.started = false;
+    S.state(lobby);
+  }
+  setTimeout(() => {
+    for (const r of open) { rooms.delete(r.key); r.worker.terminate(); }
+  }, 4000);
+}
+
+function roomEnded(R, d) {
+  if (R.ended) return;
+  R.ended = true;
+  const rd = rounds.get(R.code) || { list: [] };
+  rounds.set(R.code, rd);
+  rd.list.push(...(d.scores || []));
+  io.to(R.key).emit('g:roomdone', { reason: d.reason, room: R.room });
+  maybeFinalize(R.code);
+}
+
+function dropRoom(R) {
+  clearTimeout(R.closeT);
+  if (rooms.get(R.key) !== R) return;
+  rooms.delete(R.key);
+  if (!R.ended) maybeFinalize(R.code);
+}
+
+// ---------- worker ----------
+function onMsg(R, m) {
+  const toP = (ev) => {
+    const p = R.members.get(m.d.pid);
+    if (p && p.sid) io.to(p.sid).emit(ev, m.d);
+  };
+  switch (m.t) {
+    case 'snap': io.to(R.key).volatile.emit('g:snap', m.d); break;
+    case 'tr': io.to(R.key).emit('g:tr', m.d); break;
+    case 'fw': io.to(R.key).emit('g:fw', m.d); break;
+    case 'kill': io.to(R.key).emit('g:kill', m.d); break;
+    case 'dmg': toP('g:dmg'); break;
+    case 'me': toP('g:me'); break;
+    case 'fx': toP('g:fx'); break;
+    case 'respawn': toP('g:respawn'); break;
+    case 'corr': toP('g:corr'); break;
+    case 'msg': toP('g:msg'); break;
+    case 'end': roomEnded(R, m.d); break;
+    default: break;
+  }
+}
+
 function startWorker(R) {
   const worker = new Worker(WORKER, {
     workerData: {
       room: R.room,
-      total: cfg.ROOM_BOTS[R.room],
+      total: cfg.ROOM_CREATURES[R.room],
+      active: cfg.ROOM_ACTIVE[R.room],
       respawn: cfg.RESPAWN,
       respawnMs: cfg.RESPAWN_SECONDS * 1000,
       grace: cfg.GRACE_START,
+      roundSec: cfg.ROUND_SECONDS,
     },
   });
   R.worker = worker;
@@ -39,66 +108,23 @@ function startWorker(R) {
   worker.on('error', (e) => {
     console.error('[sim]', R.key, e);
     if (R.worker !== worker) return;
-    if (++R.crashes > 5 || !R.members.size) { rooms.delete(R.key); return; }
+    if (++R.crashes > 5 || !R.members.size) { dropRoom(R); return; }
     startWorker(R);                                   // crash ke baad naya worker
     for (const p of R.members.values()) {
       R.worker.postMessage({ t: 'join', pid: p.pid, name: p.name, team: p.game.team });
     }
   });
-  worker.on('exit', () => { if (R.worker === worker && rooms.get(R.key) === R) rooms.delete(R.key); });
+  worker.on('exit', () => { if (R.worker === worker) dropRoom(R); });
 }
 
 function open(key, game) {
-  const R = { key, code: game.code, room: game.room, worker: null, members: new Map(), closeT: null, crashes: 0 };
+  const R = { key, code: game.code, room: game.room, worker: null, members: new Map(), closeT: null, crashes: 0, ended: false };
   startWorker(R);
   rooms.set(key, R);
   return R;
 }
 
-function humanDied(R, pid) {
-  const p = R.members.get(pid);
-  const lobby = L.get(R.code);
-  const s = p && lobby && lobby.slots[p.slotIdx];
-  if (s) S.feed(lobby, `Team ${s.team} Player ${s.player} killed`);
-}
-
-function roomClear(R, d) {
-  const lobby = L.get(R.code);
-  if (!lobby) return;
-  lobby.cleared[R.room] = true;
-  io.to(R.key).emit('g:clear', { room: R.room, team: d.team });
-  S.feed(lobby, `Room ${R.room} clear!`);
-  // jis team ne start nahi dabaya, uske is room wale player auto killed
-  for (const slot of lobby.slots) {
-    if (slot.room === R.room && slot.token && !lobby.teams[slot.team].started) start.autoKill(lobby, slot);
-  }
-  S.state(lobby);
-}
-
-function onMsg(R, m) {
-  const to = (ev) => {
-    const p = R.members.get(m.d.pid);
-    if (p && p.sid) io.to(p.sid).emit(ev, m.d);
-  };
-  switch (m.t) {
-    case 'snap': io.to(R.key).volatile.emit('g:snap', m.d); break;
-    case 'tr': io.to(R.key).emit('g:tr', m.d); break;
-    case 'kill':
-      io.to(R.key).emit('g:kill', m.d);
-      if (m.d.vpid) humanDied(R, m.d.vpid);
-      break;
-    case 'dmg': to('g:dmg'); break;
-    case 'me': to('g:me'); break;
-    case 'respawn': to('g:respawn'); break;
-    case 'corr': to('g:corr'); break;
-    case 'msg': to('g:msg'); break;
-    case 'clear': roomClear(R, m.d); break;
-    default: break;
-  }
-}
-
 function join(p) {
-  if (p.game.room !== 1) return false;               // baaki rooms abhi temporary hain
   const key = `g:${p.game.code}:${p.game.room}`;
   const R = rooms.get(key) || open(key, p.game);
   clearTimeout(R.closeT);
@@ -107,7 +133,6 @@ function join(p) {
   const sock = p.sid && io.sockets.sockets.get(p.sid);
   if (sock) sock.join(key);
   R.worker.postMessage({ t: 'join', pid: p.pid, name: p.name, team: p.game.team });
-  return true;
 }
 
 function drop(p) {
@@ -125,7 +150,7 @@ function drop(p) {
     R.closeT = setTimeout(() => {
       if (R.members.size) return;
       R.worker.terminate();
-      rooms.delete(key);
+      dropRoom(R);
     }, 15000);
   }
 }

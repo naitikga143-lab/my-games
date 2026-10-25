@@ -19,7 +19,7 @@ function makeSlots() {
 function create(code) {
   const teams = {};
   for (let t = 1; t <= cfg.TEAMS; t++) teams[t] = { started: false, holder: null };
-  const lobby = { code, slots: makeSlots(), searches: new Map(), teams, running: false, cleared: {} };
+  const lobby = { code, slots: makeSlots(), searches: new Map(), teams, running: false, cleared: {}, roundOn: false };
   lobbies.set(code, lobby);
   return lobby;
 }
@@ -93,6 +93,7 @@ function snapshot(lobby) {
   return {
     code: lobby.code,
     running: lobby.running,
+    roundOn: lobby.roundOn,
     teams,
     cleared: lobby.cleared,
     slots: lobby.slots.map(({ team, player, room, pid, name, out }) => ({ team, player, room, pid, name, out })),

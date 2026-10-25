@@ -12,8 +12,7 @@ function draw() {
   liveEl.classList.toggle('hide', !state.snap.running);
   grid.replaceChildren();
   grid.append(el('div', 'corner'));
-  ROOMS.forEach((r) => grid.append(el('div', 'roomhead',
-    `Room ${r.n} with ${r.bots} bots${state.snap.cleared && state.snap.cleared[r.n] ? ' ✔ CLEAR' : ''}`)));
+  ROOMS.forEach((r) => grid.append(el('div', 'roomhead', `Room ${r.n} . ${r.c} rakshas`)));
   grid.append(el('div', 'corner'));
 
   for (let t = 1; t <= TEAMS; t++) {
@@ -74,7 +73,7 @@ function tick() {
   });
   grid.querySelectorAll('.sbtn').forEach((b) => {
     const tm = state.snap.teams[Number(b.dataset.team)];
-    if (tm.started) { b.textContent = 'LIVE'; b.className = 'sbtn live'; b.disabled = true; }
+    if (tm.started) { b.textContent = state.snap.roundOn ? 'LIVE' : 'READY'; b.className = 'sbtn live'; b.disabled = true; }
     else if (tm.holder && tm.holder === state.pid) { b.textContent = 'START'; b.className = 'sbtn'; b.disabled = false; }
     else { b.textContent = 'START'; b.className = 'sbtn lock'; b.disabled = true; }
   });

@@ -3,6 +3,7 @@ import { rayDistance, levelOf } from '../world/collision.js';
 import { HEAD_Y } from '../player/model.js';
 import { tracer } from './tracers.js';
 
+export const rules = { pvp: false };
 export const fighters = [];
 const handlers = {};
 export const on = (ev, fn) => (handlers[ev] = handlers[ev] || []).push(fn);
@@ -84,6 +85,7 @@ function pellet(shooter, origin, dir, w) {
     if (f === shooter || !f.alive) continue;
     if (shooter.team && f.team === shooter.team) continue;   // teammate ko goli nahi lagti
     if (shooter.isBot && f.isBot) continue;
+    if (!rules.pvp && !shooter.isBot && !f.isBot) continue;   // players ek dusre ko nahi maarte
     headCenter(f, _hc);
     const th = raySphere(origin, dir, _hc, R_HEAD);
     const tb = rayBody(origin, dir, f, _hc.y - 0.12);

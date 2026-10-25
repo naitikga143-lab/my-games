@@ -147,11 +147,19 @@ export function initVfx(scene, camera) {
   });
 
   on('impact', (s, p, victim, head) => {
-    if (victim) burst(p.x, p.y, p.z, head ? 26 : 14, 2.2, 0.7, 0.02, 0.02, 1.2);   // khoon
-    else burst(p.x, p.y, p.z, 8, 2.5, 1, 0.75, 0.25, 0.8);                          // deewar pe chingari
+    if (victim) {
+      if (victim.isBot) burst(p.x, p.y, p.z, 16, 2.4, 1, 0.7, 0.1, 1.2);
+      else burst(p.x, p.y, p.z, head ? 26 : 14, 2.2, 0.7, 0.02, 0.02, 1.2);
+    }
   });
 
   on('kill', (v, a, head) => {
+    if (v.isBot) {
+      const { x, y, z } = v.pos;
+      burst(x, y + 1, z, 60, 3.2, 1, 0.55, 0.15, 2);
+      burst(x, y + 1, z, 40, 3, 0.3, 1, 0.5, 2.2);
+      return;
+    }
     const { x, y, z } = v.pos;
     burst(x, y + 1.0, z, 45, 3, 0.65, 0.02, 0.02, 2);
     if (head) burst(x, y + 1.3, z, 30, 3.5, 0.8, 0.03, 0.03, 2.5);

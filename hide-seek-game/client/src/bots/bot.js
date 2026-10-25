@@ -24,13 +24,13 @@ const stubModel = () => ({
 // Table-cover shooter: table ke peeche crouch, kabhi-kabhi jhaank ke goli.
 // Player 4m ke andar aaye to daudke doosri table ke peeche. Aur koi ghumna-phirna nahi.
 export class Bot {
-  constructor(i, scene, headless = false) {
+  constructor(i, scene, headless = false, modelFactory = null) {
     this.headless = headless;
     this.f = createFighter({ id: 'bot' + i, name: BOTS.NAMES[i % BOTS.NAMES.length] + BOTS.TAG });
     this.f.isBot = true;
     this.f.alive = false;
     if (headless) this.model = stubModel();
-    else { this.model = createCharacter(); scene.add(this.model.group); this.model.group.visible = false; }
+    else { this.model = modelFactory ? modelFactory() : createCharacter(); scene.add(this.model.group); this.model.group.visible = false; }
     this.model.setWeapon(3);
 
     this.skill = rnd(BOTS.SKILL_MIN, BOTS.SKILL_MAX);

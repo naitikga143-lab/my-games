@@ -16,7 +16,7 @@ exports.seat = (p, lobby, idx) => {
   exports.state(lobby);
   // team pehle se start ho chuki hai to naya player seedha game me
   const slot = lobby.slots[idx];
-  if (lobby.teams[slot.team].started) require('./start').enter(lobby, slot);
+  if (lobby.roundOn) require('./start').enter(lobby, slot);
 };
 
 exports.unseat = (p) => {

@@ -13,9 +13,7 @@ export function startFlow() {
   addEventListener('ps:game', async (e) => {
     if (launched) return;
     launched = true;
-    const d = e.detail;
-    if (d.room === 1) (await import('../game.js')).startGame(d);
-    else (await import('../tempspace.js')).startTemp(d);
+    (await import('../game.js')).startGame(e.detail);
   });
 
   const q = new URLSearchParams(location.search);

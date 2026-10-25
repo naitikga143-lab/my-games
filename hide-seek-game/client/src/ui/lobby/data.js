@@ -1,7 +1,7 @@
 export const ROOMS = [
-  { n: 1, bots: 16 }, { n: 2, bots: 18 }, { n: 3, bots: 20 }, { n: 4, bots: 24 },
+  { n: 1, c: 40, a: 4 }, { n: 2, c: 50, a: 6 }, { n: 3, c: 60, a: 8 }, { n: 4, c: 80, a: 10 },
 ];
-export const TEAMS = 4;
+export const TEAMS = 2;
 export const PLAYERS = 4;
 
 export const state = { snap: null, pid: null, endsAt: {} };

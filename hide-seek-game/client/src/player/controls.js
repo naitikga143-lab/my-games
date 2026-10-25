@@ -12,6 +12,7 @@ import { SCOPES } from '../game/weapondata.js';
 import { eco } from '../game/economy.js';
 import { createViewGun } from './viewgun.js';
 import { roomInfo } from '../game/roomstate.js';
+import { fxState } from '../game/fix.js';
 
 const SPEED = 4.2, ACCEL = 12;
 const EYE = 1.3, EYE_CROUCH = 0.8;
@@ -118,7 +119,7 @@ export function createControls(camera, dom, avatar, spawnIdx = 0, net = false) {
     const len = Math.hypot(f, s);
     if (len > 1) { f /= len; s /= len; }
     if (len < 0.1) { f = 0; s = 0; }
-    const mul = (crouch ? 0.8 : run ? 1.55 : 1) * (1 - 0.12 * adsK);
+    const mul = (crouch ? 0.8 : run ? 1.55 : 1) * (1 - 0.12 * adsK) * fxState.slowK;
     const dirX = -Math.sin(yaw) * f + Math.cos(yaw) * s;
     const dirZ = -Math.cos(yaw) * f - Math.sin(yaw) * s;
     const k = Math.min(1, dt * ACCEL);

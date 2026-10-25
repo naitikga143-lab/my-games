@@ -1,16 +1,15 @@
-import { Bot } from './bot.js';
+import { Creature } from './creature.js';
 import * as THREE from 'three';
 import { BOTS } from './config.js';
 import { buildNav, coverNodes, occ, getHideNodes, exposed } from './nav.js';
 import { on } from '../game/fighters.js';
 import { levelOf } from '../world/collision.js';
 
-const ACTIVE = 4;
 const rnd = (a, b) => a + Math.random() * (b - a);
 const _a = new THREE.Vector3();
 
 // pehla half bots ground floor pe, wo sab marne ke baad doosra half upar wali floor pe
-export function createSquad(scene, total, { headless, humans, camPos, grace = 20 }) {
+export function createSquad(scene, total, { headless, humans, camPos, grace = 5, active = 4, room =1, fw = null }) {
   buildNav();
   const covers = coverNodes.filter((n) => n.links.length);
   const spots = covers.length >= 6 ? covers : getHideNodes();
@@ -25,8 +24,10 @@ export function createSquad(scene, total, { headless, humans, camPos, grace = 20
   const phaseLevel = () => (killed < groundTotal ? 0 : 1);
   const canSpawn = () => (killed < groundTotal ? spG < groundTotal : spU < upperTotal);
 
+  const CN = ['Pumpkin Imp', 'Neel Rakshas', 'Hara Pishach', 'Laal Danav'];
   function persona(b) {
-    b.f.name = names[nameI++ % names.length] + BOTS.TAG;
+    b.f.name = CN[(room - 1) % 4];
+    b.fwType = Math.floor(Math.random() * 5);      // har creature alag patakha
     b.skill = rnd(BOTS.SKILL_MIN, BOTS.SKILL_MAX);
     b.newReact();
   }
@@ -71,8 +72,9 @@ export function createSquad(scene, total, { headless, humans, camPos, grace = 20
     }
   }
 
-  for (let i = 0; i < ACTIVE; i++) {
-    const bot = new Bot(i, scene, headless);
+  for (let i = 0; i < active; i++) {
+    const bot = new Creature(i, scene, headless, room);
+    bot.fw = fw
     bot.onEngage = alert;
     const s = { bot, active: false, nextAt: 0, since: 0 };
     slots.push(s);

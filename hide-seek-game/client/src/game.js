@@ -25,6 +25,8 @@ import { initNet } from './game/netsync.js';
 import { req } from './ui/lobby/net.js';
 import { toast } from './ui/dom.js';
 import { me } from './player/self.js';
+import { initFwVfx } from './game/fwvfx.js';
+import { initFx } from './game/fix.js';
 
 // dev mode (?dev=game) me shop ka local hisaab
 function localBuy(i) {
@@ -68,9 +70,11 @@ export function startGame(d = null) {
   if (d) { me.id = d.pid; me.name = d.name; }
   setupTouch();
   const controls = createControls(camera, renderer.domElement, avatar, d ? d.team - 1 : 0, !!d);
-  const bots = d ? null : createBots(scene, camera, 16);
+  const bots = d ? null : createBots(scene, camera, 40, 4, 1);
   const net = d ? initNet(scene, controls) : null;
   const vfx = initVfx(scene, camera);
+  const fwv = initFwVfx(scene, camera);
+  const fx = initFx(camera);
   const xh = initCrosshair();
   const scp = initScopeUi();
   const shop = initShop(
@@ -91,6 +95,8 @@ export function startGame(d = null) {
       net?.update(dt);
       updateTracers(dt);
       vfx.update(dt);
+      fwv.update(dt);
+      fx.update(dt);
       const ads = controls.ads();
       xh.update(dt, ads);
       scp.update(ads);

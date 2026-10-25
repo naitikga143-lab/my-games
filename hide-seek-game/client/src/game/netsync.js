@@ -9,6 +9,9 @@ import { eco } from './economy.js';
 import { tracer } from './tracers.js';
 import { roomInfo } from './roomstate.js';
 import { WEAPONS, BOT_GUN } from './weapondata.js';
+import { createCreatureModel } from './creaturemodel.js';
+import { applyFx } from './fix.js';
+import { roomDone, showRound } from './results.js';
 
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -22,8 +25,8 @@ export function initNet(scene, controls) {
     let r = remotes.get(e.i);
     if (r) return r;
     const f = createFighter({ id: e.i, name: e.n });
-    f.remote = true; f.alive = false;
-    const model = createCharacter();
+    f.remote = true; f.alive = false; f.isBot = !!e.b;
+    const model = e.b ? createCreatureModel(e.dz || 1) : createCharacter();
     model.group.visible = false;
     scene.add(model.group);
     r = { f, model, tp: new THREE.Vector3(), yaw: 0, tyaw: 0, pitch: 0, lean: 0, run: false, speed: 0, seen: false, weapon: 0, deadFor: e.a ? 0 : 99 };
@@ -42,8 +45,8 @@ export function initNet(scene, controls) {
 
   const who = (id) => (id === me.id ? me : remotes.get(id)?.f);
 
-  socket.on('g:snap', ({ l, bl }) => {
-    roomInfo.botsLeft = bl;
+  socket.on('g:snap', ({ l, bl, tl }) => {
+    roomInfo.botsLeft = tl;
     for (const e of l) {
       if (e.i === me.id) { roomInfo.grace = e.h ? e.gl : 0; continue;}
       const r = ensure(e);
@@ -110,16 +113,17 @@ export function initNet(scene, controls) {
   });
   socket.on('g:corr', (d) => controls.teleport(d.x, d.y, d.z));
   socket.on('g:msg', (d) => toast(d.text));
-  socket.on('g:clear', () => {
-    roomInfo.banner = 'ROOM CLEAR!';
-    setTimeout(() => { roomInfo.banner = ''; }, 6000);
-  });
 
   // meri taraf ki goli server ko bhejo (damage server tay karega)
   on('shot', (s, o, d) => {
     if (s !== me || !d) return;
     socket.emit('g:shoot', { o: [r3(o.x), r3(o.y), r3(o.z)], d: [r3(d.x), r3(d.y), r3(d.z)], w: input.weapon });
   });
+
+  socket.on('g:fw', (d) => emit('fw', d));
+  socket.on('g:fx', (d) => applyFx(d));
+  socket.on('g:roomdone', (d) => roomDone(d.reason));
+  socket.on('g:round', (d) => showRound(d));
 
   req('g:join');
 

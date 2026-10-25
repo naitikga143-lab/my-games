@@ -82,10 +82,11 @@ export function initHud({ onExit } = {}) {
       if (dmgT > 0 && (dmgT -= dt) <= 0) dmg.classList.remove('on');
       if (popT > 0 && (popT -= dt) <= 0) popup.classList.remove('on');
 
-      const txt = `${roomInfo.botsLeft ? 'BOTS ' + roomInfo.botsLeft : 'ROOM CLEAR'} · KILLS ${me.kills} · HS ${me.headshots} · $${me.coins}`;
+      const tm = Math.max(0, roomInfo.time | 0);
+      const txt = `⏱ ${Math.floor(tm / 60)}:${String(tm % 60).padStart(2, '0')} · ${roomInfo.botsLeft ? 'RAKSHAS ' + roomInfo.botsLeft : 'ROOM CLEAR'} · KILLS ${me.kills} · HS ${me.headshots} · $${me.coins}`;
       if (txt !== lastInfo) { info.textContent = txt; lastInfo = txt; }
 
-      const b = roomInfo.grace > 0 ? `HIDE! ${Math.ceil(roomInfo.grace)}s` : roomInfo.banner;
+      const b = roomInfo.grace > 0 ? `GET READY ${Math.ceil(roomInfo.grace)}s` : roomInfo.banner;
       if (b !== lastBanner) { banner.textContent = b; lastBanner = b; }
 
       if (me.hp !== lastHp) {
