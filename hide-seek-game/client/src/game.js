@@ -26,7 +26,7 @@ import { req } from './ui/lobby/net.js';
 import { toast } from './ui/dom.js';
 import { me } from './player/self.js';
 import { initFwVfx } from './game/fwvfx.js';
-import { initFx } from './game/fix.js';
+import { initFx } from './game/fx.js';
 
 // dev mode (?dev=game) me shop ka local hisaab
 function localBuy(i) {

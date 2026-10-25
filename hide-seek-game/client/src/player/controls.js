@@ -12,7 +12,7 @@ import { SCOPES } from '../game/weapondata.js';
 import { eco } from '../game/economy.js';
 import { createViewGun } from './viewgun.js';
 import { roomInfo } from '../game/roomstate.js';
-import { fxState } from '../game/fix.js';
+import { fxState } from '../game/fx.js';
 
 const SPEED = 4.2, ACCEL = 12;
 const EYE = 1.3, EYE_CROUCH = 0.8;

@@ -10,7 +10,7 @@ import { tracer } from './tracers.js';
 import { roomInfo } from './roomstate.js';
 import { WEAPONS, BOT_GUN } from './weapondata.js';
 import { createCreatureModel } from './creaturemodel.js';
-import { applyFx } from './fix.js';
+import { applyFx } from './fx.js';
 import { roomDone, showRound } from './results.js';
 
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
