@@ -103,7 +103,7 @@ function pellet(shooter, origin, dir, w) {
   emit('tracer', shooter, _ts, _end, !!victim, head, w);
   emit('impact', shooter, _end, victim, head);
 
-  if (!victim.remote) {
+  if (victim && !victim.remote) {
     applyDamage(victim, shooter, victim.isBot ? (head ? 999 : (w.cb || w.body)) : (head ? w.head : w.body), head);
   }
 }
