@@ -76,7 +76,7 @@ function onMsg(R, m) {
     if (p && p.sid) io.to(p.sid).emit(ev, m.d);
   };
   switch (m.t) {
-    case 'snap': io.to(R.key).volatile.emit('g:snap', m.d); break;
+    case 'snap': R.lastSnap = Date.now(); io.to(R.key).volatile.emit('g:snap', m.d); break;
     case 'tr': io.to(R.key).emit('g:tr', m.d); break;
     case 'fw': io.to(R.key).emit('g:fw', m.d); break;
     case 'kill': io.to(R.key).emit('g:kill', m.d); break;
@@ -108,7 +108,7 @@ function startWorker(R) {
   worker.on('error', (e) => {
     console.error('[sim]', R.key, e);
     if (R.worker !== worker) return;
-    if (++R.crashes > 5 || !R.members.size) { dropRoom(R); return; }
+    if (++R.crashes > 20 || !R.members.size) { dropRoom(R); return; }
     startWorker(R);                                   // crash ke baad naya worker
     for (const p of R.members.values()) {
       R.worker.postMessage({ t: 'join', pid: p.pid, name: p.name, team: p.game.team });
@@ -118,7 +118,7 @@ function startWorker(R) {
 }
 
 function open(key, game) {
-  const R = { key, code: game.code, room: game.room, worker: null, members: new Map(), closeT: null, crashes: 0, ended: false };
+  const R = { key, code: game.code, room: game.room, worker: null, members: new Map(), closeT: null, crashes: 0, ended: false, lastSnap: Date.now() };
   startWorker(R);
   rooms.set(key, R);
   return R;
@@ -158,6 +158,21 @@ function drop(p) {
 exports.init = (i) => { io = i; };
 exports.drop = drop;
 exports.end = (p) => { drop(p); p.game = null; };
+
+setInterval(() => {
+  const now = Date.now();
+  for (const R of rooms.values()) {
+    if (R.ended || !R.members.size || now - R.lastSnap < 5000) continue;
+    console.error('[sim] watchdog restart', R.key);
+    R.lastSnap = now;
+    const old = R.worker;
+    startWorker(R);
+    old.terminate();
+    for (const p of R.members.values()) {
+      R.worker.postMessage({ t: 'join', pid: p.pid, name: p.name, team: p.game.team });
+    }
+  }
+}, 2000);
 
 exports.register = (socket) => {
   const me = () => players.bySid(socket.id);

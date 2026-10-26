@@ -63,12 +63,12 @@ function raySphere(o, d, c, r) {
   return t >= 0 ? t : -1;
 }
 
-function rayBody(o, d, f, top) {
+function rayBody(o, d, f, top, rb) {
   const ox = o.x - f.pos.x, oz = o.z - f.pos.z;
   const a = d.x * d.x + d.z * d.z;
   if (a < 1e-6) return -1;
   const b = ox * d.x + oz * d.z;
-  const cc = ox * ox + oz * oz - R_BODY * R_BODY;
+  const cc = ox * ox + oz * oz - rb * rb;
   const disc = b * b - a * cc;
   if (disc < 0) return -1;
   const t = (-b - Math.sqrt(disc)) / a;
@@ -87,8 +87,9 @@ function pellet(shooter, origin, dir, w) {
     if (shooter.isBot && f.isBot) continue;
     if (!rules.pvp && !shooter.isBot && !f.isBot) continue;   // players ek dusre ko nahi maarte
     headCenter(f, _hc);
-    const th = raySphere(origin, dir, _hc, R_HEAD);
-    const tb = rayBody(origin, dir, f, _hc.y - 0.12);
+    const rh = f.isBot ? 0.26 : R_HEAD, rb = f.isBot ? 0.4 : R_BODY;
+    const th = raySphere(origin, dir, _hc, rh);
+    const tb = rayBody(origin, dir, f, _hc.y - 0.12, rb);
     let t = -1, isHead = false;
     if (th >= 0 && (tb < 0 || th <= tb + 0.1)) { t = th; isHead = true; }
     else if (tb >= 0) t = tb;
@@ -102,9 +103,8 @@ function pellet(shooter, origin, dir, w) {
   emit('tracer', shooter, _ts, _end, !!victim, head, w);
   emit('impact', shooter, _end, victim, head);
 
-  if (victim) {
-    if (!victim.remote) applyDamage(victim, shooter, head ? w.head : w.body, head);   // remote ka damage server se aata hai
-    emit('hit', shooter, victim, head);
+  if (!victim.remote) {
+    applyDamage(victim, shooter, victim.isBot ? (head ? 999 : (w.cb || w.body)) : (head ? w.head : w.body), head);
   }
 }
 

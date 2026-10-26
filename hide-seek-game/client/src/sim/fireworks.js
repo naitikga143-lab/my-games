@@ -84,6 +84,12 @@ export function createFireworks({ humans, applyFx }) {
       const p = P[i];
       p.t += dt;
 
+      if (p.t > 12 || !Number.isFinite(p.pos.x + p.pos.y + p.pos.z)) {
+        ev({ k: 'x', id: p.id });
+        P.splice(i, 1);
+        continue;
+      }
+
       if (p.st === 'fly') {
         p.vel.y -= p.g * dt;
         _n.copy(p.pos).addScaledVector(p.vel, dt);

@@ -236,13 +236,15 @@ setInterval(() => {
 }, 33);
 
 parentPort.on('message', (m) => {
-  switch (m.t) {
-    case 'join': join(m); break;
-    case 'leave': leave(m); break;
-    case 'state': onState(m); break;
-    case 'shoot': onShoot(m); break;
-    case 'buy': onBuy(m); break;
-    case 'buyscope': onBuyScope(m); break;
-    default: break;
-  }
+  try {
+    switch (m.t) {
+      case 'join': join(m); break;
+      case 'leave': leave(m); break;
+      case 'state': onState(m); break;
+      case 'shoot': onShoot(m); break;
+      case 'buy': onBuy(m); break;
+      case 'buyscope': onBuyScope(m); break;
+      default: break;
+    }
+  } catch (e) { console.error('[sim msg]', e && e.stack ? e.stack : e); }
 });

@@ -1,5 +1,5 @@
 export const ROOMS = [
-  { n: 1, c: 40, a: 4 }, { n: 2, c: 50, a: 6 }, { n: 3, c: 60, a: 8 }, { n: 4, c: 80, a: 10 },
+  { n: 1, c: 50, a: 5 }, { n: 2, c: 50, a: 5 }, { n: 3, c: 50, a: 5 }, { n: 4, c: 50, a: 5 },
 ];
 export const TEAMS = 2;
 export const PLAYERS = 4;

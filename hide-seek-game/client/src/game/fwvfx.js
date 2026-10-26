@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { on } from './fighters.js';
+import { dotTex } from './dot.js';
 
 const N = 900, GRAV = 5.5;
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -15,7 +16,7 @@ export function initFwVfx(scene, camera) {
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3).setUsage(THREE.DynamicDrawUsage));
   const pts = new THREE.Points(geo, new THREE.PointsMaterial({
-    size: 0.17, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    size: 0.17, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, map: dotTex, alphaTest: 0.05,
   }));
   pts.frustumCulled = false;
   scene.add(pts);

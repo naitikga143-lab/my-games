@@ -9,7 +9,10 @@ const wire = require('./lobby/events');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: true }, maxHttpBufferSize: 1e5 });
+const io = new Server(server, {
+  cors: { origin: true }, maxHttpBufferSize: 1e5,
+  pingInterval: 25000, pingTimeout: 60000,
+});
 service.init(io);
 game.init(io);
 

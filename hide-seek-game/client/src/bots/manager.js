@@ -4,7 +4,7 @@ import { applyFx } from '../game/fx.js';
 import { me } from '../player/self.js';
 import { roomInfo } from '../game/roomstate.js';
 
-export function createBots(scene, camera, total = 40, active = 4, room = 1) {
+export function createBots(scene, camera, total = 50, active = 5, room = 1) {
   roomInfo.total = total;
   roomInfo.botsLeft = total;
   const fw = createFireworks({

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { on } from './fighters.js';
 import { me } from '../player/self.js';
 import { WEAPONS, BOT_GUN } from './weapondata.js';
+import { dotTex } from './dot.js';
 
 const N = 320;
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -16,7 +17,7 @@ export function initVfx(scene, camera) {
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3).setUsage(THREE.DynamicDrawUsage));
   const pts = new THREE.Points(geo, new THREE.PointsMaterial({
-    size: 0.11, vertexColors: true, transparent: true, depthWrite: false,
+    size: 0.11, vertexColors: true, transparent: true, depthWrite: false, map: dotTex, alphaTest: 0.05,
   }));
   pts.frustumCulled = false;
   scene.add(pts);

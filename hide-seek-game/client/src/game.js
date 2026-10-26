@@ -70,7 +70,7 @@ export function startGame(d = null) {
   if (d) { me.id = d.pid; me.name = d.name; }
   setupTouch();
   const controls = createControls(camera, renderer.domElement, avatar, d ? d.team - 1 : 0, !!d);
-  const bots = d ? null : createBots(scene, camera, 40, 4, 1);
+  const bots = d ? null : createBots(scene, camera, 50, 5, 1);
   const net = d ? initNet(scene, controls) : null;
   const vfx = initVfx(scene, camera);
   const fwv = initFwVfx(scene, camera);

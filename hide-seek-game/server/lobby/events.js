@@ -45,6 +45,7 @@ module.exports = function wire(socket) {
     clearTimeout(p.timer);
     p.timer = null;
     players.attach(p, socket.id);
+    if (p.gameKey) socket.join(p.gameKey);
     reply(cb, { ok: true, name: p.name });
     const lobby = p.lobbyCode && L.get(p.lobbyCode);
     if (lobby) {
@@ -126,7 +127,6 @@ module.exports = function wire(socket) {
   socket.on('disconnect', () => {
     const p = me();
     if (!p) return;
-    game.drop(p);
     players.detach(p);
     if (p.pool) match.cancelPool(p);
     p.timer = setTimeout(() => fullRemove(p), cfg.GRACE_SECONDS * 1000);

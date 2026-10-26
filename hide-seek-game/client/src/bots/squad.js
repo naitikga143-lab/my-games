@@ -25,9 +25,14 @@ export function createSquad(scene, total, { headless, humans, camPos, grace = 5,
   const canSpawn = () => (killed < groundTotal ? spG < groundTotal : spU < upperTotal);
 
   const CN = ['Pumpkin Imp', 'Neel Rakshas', 'Hara Pishach', 'Laal Danav'];
-  function persona(b) {
+  function persona(s) {
+    const b = s.bot;
     b.f.name = CN[(room - 1) % 4];
-    b.fwType = Math.floor(Math.random() * 5);      // har creature alag patakha
+    // jo patakha doosre zinda creatures use kar rahe hain wo nahi, to har ek ka type alag rehta hai
+    const used = slots.filter((o) => o !== s && o.active && o.bot.f.alive).map((o) => o.bot.fwType);
+    const free = [0, 1, 2, 3, 4].filter((t) => !used.includes(t));
+    const pool = free.length ? free : [0, 1, 2, 3, 4];
+    b.fwType = pool[Math.floor(Math.random() * pool.length)];
     b.skill = rnd(BOTS.SKILL_MIN, BOTS.SKILL_MAX);
     b.newReact();
   }
@@ -38,6 +43,7 @@ export function createSquad(scene, total, { headless, humans, camPos, grace = 5,
     const cand = [];
     for (const n of spots) {
       if (n.level !== level || occ.has(n.i)) continue;
+      if (slots.some((s) => s.active && s.bot.f.alive && Math.hypot(s.bot.f.pos.x - n.x, s.bot.f.pos.z - n.z) < 5)) continue;
       let ok = true;
       for (const h of here) {
         if (Math.hypot(n.x - h.pos.x, n.z - h.pos.z) < (relax ? 8 : 11)) { ok = false; break; }
@@ -56,7 +62,7 @@ export function createSquad(scene, total, { headless, humans, camPos, grace = 5,
   }
 
   function spawnInto(s, node) {
-    persona(s.bot);
+    persona(s);
     if (phaseLevel() === 0) spG++; else spU++;
     s.bot.spawn(null, node);
     s.active = true;
@@ -80,6 +86,8 @@ export function createSquad(scene, total, { headless, humans, camPos, grace = 5,
     slots.push(s);
     byF.set(bot.f, s);
   }
+
+  for (const s of slots) s.bot.mates = slots.map((o) => o.bot);
 
   on('shot', (shooter, origin) => slots.forEach((s) => s.active && s.bot.hear(shooter, origin)));
   on('damage', (victim, attacker) => byF.get(victim)?.bot.hurt(attacker));
