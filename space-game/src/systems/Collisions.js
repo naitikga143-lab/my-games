@@ -50,8 +50,10 @@ export function resolveCollisions(g) {
     const b = world.bullets[i];
     let target = null;
     let kind = '';
-    for (const s of world.satellites) if (!s.fading && hit(b, s)) { target = s; kind = 'sat'; break; }
-    if (!target) for (const a of world.asteroids) if (!a.fading && hit(b, a)) { target = a; kind = 'ast'; break; }
+    if (!b.seeker) { // targeting missiles fly past rocks and satellites: they only want enemies
+      for (const s of world.satellites) if (!s.fading && hit(b, s)) { target = s; kind = 'sat'; break; }
+      if (!target) for (const a of world.asteroids) if (!a.fading && hit(b, a)) { target = a; kind = 'ast'; break; }
+    }
     if (!target) for (const e of world.enemies) if (!e.fading && hit(b, e)) { target = e; kind = 'enemy'; break; }
     if (!target) continue;
 
@@ -72,12 +74,32 @@ export function resolveCollisions(g) {
     }
   }
 
+  // Enemy bullets: damage depends on the ship that fired them
+  const canHurt = !g.inZone && player.alive && player.invuln <= 0 && player.hurtCd <= 0;
+  for (let i = world.enemyShots.length - 1; i >= 0; i--) {
+    const s = world.enemyShots[i];
+    if (s.fading) continue;
+    if (canHurt && hit(player, s)) {
+      effects.spark(s.x, s.y);
+      world.remove(world.enemyShots, s);
+      g.hurtPlayer(s.damage);
+      if (g.mode !== 'play') return;
+      break;
+    }
+  }
+
   // Ship vs hazards: nothing can hurt the ship inside a safe zone
   if (g.inZone || !player.alive || player.invuln > 0) return;
   for (const a of [...world.asteroids]) {
     if (a.fading || !hit(player, a)) continue;
     if (state.fuel && state.fuel.smash) { // intense energy smashes meteors
       damageAsteroid(g, a, 999);
+    } else if (state.shield > 0) {        // asteroid protector absorbs the hit
+      state.shield--;
+      damageAsteroid(g, a, 999);
+      effects.ring(player.x, player.y, 0x7fe8ff, state.shield > 0 ? 80 : 120);
+      g.shake(6);
+      player.shieldHit();
     } else {
       return g.gameOver();
     }

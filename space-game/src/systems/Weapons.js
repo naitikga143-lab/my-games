@@ -1,5 +1,5 @@
 import { CONFIG } from '../config.js';
-import { Bullet, Missile } from '../entities/Projectiles.js';
+import { Bullet, Missile, SeekerMissile } from '../entities/Projectiles.js';
 
 export class Weapons {
   constructor(world) {
@@ -10,11 +10,12 @@ export class Weapons {
   reset() {
     this.fireT = 0;
     this.missileT = 0;
+    this.missileTotal = CONFIG.missileCooldown;
   }
 
-  get missileFrac() { return 1 - this.missileT / CONFIG.missileCooldown; }
+  get missileFrac() { return 1 - this.missileT / this.missileTotal; }
 
-  update(dt, input, player) {
+  update(dt, input, player, state) {
     this.fireT -= dt;
     this.missileT = Math.max(0, this.missileT - dt);
     const wantMissile = input.consumeMissile();
@@ -27,8 +28,15 @@ export class Weapons {
       }
     }
     if (wantMissile && this.missileT <= 0) {
-      this.missileT = CONFIG.missileCooldown;
-      this.world.add(this.world.bullets, new Missile(player.x, player.y - 34));
+      const enemyOnScreen = this.world.enemies.some(e => !e.fading && e.y > -e.radius * 0.5);
+      if (state.seekers > 0 && enemyOnScreen) { // targeting missile: auto-locks, kills any enemy
+        state.seekers--;
+        this.missileT = this.missileTotal = CONFIG.seekerCooldown;
+        this.world.add(this.world.bullets, new SeekerMissile(player.x, player.y - 34, this.world));
+      } else {
+        this.missileT = this.missileTotal = CONFIG.missileCooldown;
+        this.world.add(this.world.bullets, new Missile(player.x, player.y - 34));
+      }
     }
   }
 }

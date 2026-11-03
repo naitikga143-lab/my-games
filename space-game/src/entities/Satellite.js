@@ -7,9 +7,9 @@ export class Satellite extends Container {
     this.vy = 150 + Math.random() * 60;
     this.vx = (Math.random() - 0.5) * 40;
     this.spin = (Math.random() - 0.5) * 0.6;
-    this.scale.set(0.7 + Math.random() * 0.5);
+    this.scale.set(0.4 + Math.random() * 0.25);
     this.rotation = Math.random() * Math.PI * 2;
-    this.radius = 56 * this.scale.x; // indestructible, collision = game over
+    this.radius = 62 * this.scale.x; // indestructible, collision = game over
 
     const g = new Graphics();
     for (const x of [-76, 20]) { // solar panels

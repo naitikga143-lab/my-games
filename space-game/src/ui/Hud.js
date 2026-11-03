@@ -2,11 +2,16 @@ import { Container, Graphics } from 'pixi.js';
 import { makeText, coinIcon } from './widgets.js';
 
 const BAR_W = 170;
+const HP_W = 150;
 
 export class Hud extends Container {
   constructor() {
     super();
     this.w = 800;
+    this.h = 600;
+    this.hurtA = 0;
+    this.flash = new Graphics(); // soft red flash when the ship is hit
+    this.flash.alpha = 0;
     this.coinIc = coinIcon(11);
     this.coinText = makeText('0', 24);
     this.distText = makeText('0 m', 28);
@@ -17,33 +22,59 @@ export class Hud extends Container {
     this.fuelLabel.anchor.set(1, 0);
     this.missLabel = makeText('MISSILE', 11, 0xffb08a);
     this.missLabel.anchor.set(1, 0);
+    this.hpText = makeText('100', 12);
+    this.seekText = makeText('', 13, 0xff8a8a);
+    this.shieldText = makeText('', 13, 0x7fe8ff);
     this.bars = new Graphics();
-    this.addChild(this.bars, this.coinIc, this.coinText, this.distText, this.nextText, this.fuelLabel, this.missLabel);
+    this.addChild(
+      this.flash, this.seekText, this.shieldText, this.bars, this.coinIc, this.coinText,
+      this.distText, this.nextText, this.fuelLabel, this.missLabel, this.hpText,
+    );
     this.layout(800, 600);
   }
 
-  layout(w) {
+  layout(w, h = this.h) {
     this.w = w;
+    this.h = h;
     const m = 16;
+    this.flash.clear().rect(0, 0, w, h).fill(0xff2020);
     this.coinIc.position.set(m + 11, m + 15);
     this.coinText.position.set(m + 30, m);
     this.distText.position.set(w / 2, m - 2);
     this.nextText.position.set(w / 2, m + 34);
     this.fuelLabel.position.set(w - m, m);
     this.missLabel.position.set(w - m, m + 40);
+    this.hpText.position.set(m + HP_W + 8, 31);
+    this.seekText.position.set(m, m + 52);
+    this.shieldText.position.set(m, m + 70);
   }
 
+  hurt() { this.hurtA = 1; }
+
   update(state, info) {
+    this.hurtA = Math.max(0, this.hurtA - 0.05);
+    this.flash.alpha = this.hurtA * 0.16;
+
     this.coinText.text = String(state.coins);
     this.distText.text = Math.floor(state.distance) + ' m';
     this.nextText.text = info.stationText;
+    this.hpText.text = String(Math.ceil(state.hp));
+    this.seekText.text = state.seekers > 0 ? `TARGETING MISSILES  x${state.seekers}` : '';
+    this.shieldText.text = state.shield > 0 ? `ASTEROID PROTECTOR  ${state.shield} LEFT` : '';
 
     const fuel = state.fuel;
     this.fuelLabel.text = fuel ? `${fuel.name}  ${Math.ceil(state.fuelLeft)}s` : 'NO FUEL  (base speed)';
 
-    const x = this.w - 16 - BAR_W;
     const g = this.bars;
     g.clear();
+
+    // HP bar (top-left)
+    const hf = Math.max(0, Math.min(1, state.hp / state.maxHp));
+    g.roundRect(16, 32, HP_W, 12, 6).fill({ color: 0x000000, alpha: 0.5 });
+    if (hf * HP_W > 3) g.roundRect(16, 32, HP_W * hf, 12, 6).fill(hf > 0.5 ? 0x4cff7a : hf > 0.25 ? 0xffc83d : 0xff4d4d);
+
+    // fuel + missile bars (top-right)
+    const x = this.w - 16 - BAR_W;
     g.roundRect(x, 38, BAR_W, 12, 6).fill({ color: 0x000000, alpha: 0.5 });
     if (fuel) {
       const f = Math.max(0, Math.min(1, state.fuelLeft / fuel.duration));

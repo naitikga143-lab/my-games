@@ -65,7 +65,7 @@ export class Spawner {
       this.world.add(this.world.satellites, s);
     }
     if (this.coinT <= 0) {
-      this.coinT = 3 + Math.random() * 2.5;
+      this.coinT = 2.2 + Math.random() * 2.2;
       for (const [x, y] of coinPattern(w)) {
         const c = new Coin(1);
         c.position.set(x, y);

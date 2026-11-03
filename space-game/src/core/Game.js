@@ -1,5 +1,5 @@
 import { Application, Container } from 'pixi.js';
-import { CONFIG } from '../config.js';
+import { CONFIG, EXHAUSTS } from '../config.js';
 import { Input } from './Input.js';
 import { State } from './State.js';
 import { Player } from '../entities/Player.js';
@@ -56,6 +56,7 @@ export class Game {
     this.shakeMag = 0;
     this.overTimer = 0;
     this.sw = 0; this.sh = 0;
+    this.flameStyle = '';
 
     this.player.reset(app.screen);
     this.input.setButtonVisible(true);
@@ -100,10 +101,13 @@ export class Game {
     if (!this.inZone) state.update(dt);           // fuel burns only while flying
     state.distance += CONFIG.metersPerSecond * wdt; // distance is never reduced by fuel type
 
+    player.shieldCharges = state.shield;
     player.update(dt, input, screen, state.fuel ? state.fuel.agility : 1);
-    this.weapons.update(dt, input, player);
-    this.exhaust.update(dt, player, state.fuel ? state.fuel.trail : undefined);
-    map.update(wdt, player);
+    this.weapons.update(dt, input, player, state);
+    this.applyExhaustStyle();
+    this.exhaust.update(dt, player, state.exhaust, state.fuel ? state.fuel.trail : undefined);
+    input.setMissileLabel(state.seekers > 0 ? `SEEK x${state.seekers}` : 'MISSILE');
+    map.update(wdt, player, this.speed, dt);
     this.spawner.update(wdt, state.distance, !!this.station || this.inZone);
     world.update(wdt, dt, player, screen, this.effects);
     this.updateStation(wdt, dt);
@@ -117,6 +121,13 @@ export class Game {
     this.hud.update(state, { missileFrac: this.weapons.missileFrac, stationText });
   }
 
+  applyExhaustStyle() {
+    if (this.flameStyle === this.state.exhaust) return;
+    this.flameStyle = this.state.exhaust;
+    const d = EXHAUSTS[this.flameStyle];
+    this.player.model.setFlame(d.flame, d.glow);
+  }
+
   // ---------- stations / safe zone ----------
   updateStation(wdt, dt) {
     const { state, player } = this;
@@ -124,7 +135,7 @@ export class Game {
 
     if (!this.station && state.distance >= state.nextShopDistance) {
       const kind = CONFIG.shopOrder[state.shopIndex % CONFIG.shopOrder.length];
-      state.shopIndex++;
+      state.passStation(); // schedules the next one (1000 -> 2100 -> 3300 ...)
       const st = new Station(kind, screen);
       st.position.set(screen.width / 2 + (Math.random() - 0.5) * screen.width * 0.2, -260 * st.s);
       this.station = st;
@@ -189,6 +200,17 @@ export class Game {
     this.input.setButtonVisible(true);
   }
 
+  // enemy bullets take HP (bigger ships hit harder)
+  hurtPlayer(dmg) {
+    const s = this.state;
+    s.hp = Math.max(0, s.hp - dmg);
+    this.player.hurtCd = 0.3;
+    this.effects.ring(this.player.x, this.player.y, 0xff5a5a, 60);
+    this.shake(4 + dmg * 0.25);
+    this.hud.hurt();
+    if (s.hp <= 0) this.gameOver();
+  }
+
   // ---------- game over ----------
   gameOver() {
     if (this.mode === 'over') return;
@@ -202,7 +224,7 @@ export class Game {
   }
 
   updateOver(dt) {
-    this.map.update(dt * 0.3, this.player);
+    this.map.update(dt * 0.3, this.player, 0.3, dt);
     this.exhaust.update(dt, this.player);
     this.overTimer -= dt;
     if (this.overTimer <= 0 && !this.gameOverScreen.visible) {

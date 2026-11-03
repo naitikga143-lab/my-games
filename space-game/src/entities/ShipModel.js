@@ -11,6 +11,8 @@ export class ShipModel extends Container {
     super();
     this.t = 0;
 
+    this.flameColors = [0x2f9bff, 0xbfeaff, 0xffffff];
+
     this.aura = glowSprite(0x3fa9ff, 240, 0.22);
     this.flames = ENGINES.map(x => {
       const g = new Graphics();
@@ -38,6 +40,13 @@ export class ShipModel extends Container {
     this.lightR = new Graphics().circle(50, 38, 2.5).fill(0x3bff6a);
 
     this.addChild(this.aura, ...this.flames, hull, ...this.nozzleGlows, this.lightL, this.lightR);
+  }
+
+  // colours of the engine flame (changes with the exhaust style)
+  setFlame(colors, glow) {
+    this.flameColors = colors;
+    this.aura.tint = glow;
+    for (const s of this.nozzleGlows) s.tint = glow;
   }
 
   drawHull(g) {
@@ -78,10 +87,11 @@ export class ShipModel extends Container {
     const base = 18 + Math.max(0, thrust) * 16 - Math.max(0, -thrust) * 6;
     this.flames.forEach((g, i) => {
       const len = base + Math.sin(this.t * 45 + i * 2) * 4 + Math.random() * 5;
+      const c = this.flameColors;
       g.clear()
-        .poly([-6, 0, 6, 0, 0, len]).fill({ color: 0x2f9bff, alpha: 0.85 })
-        .poly([-3.5, 0, 3.5, 0, 0, len * 0.62]).fill(0xbfeaff)
-        .poly([-1.8, 0, 1.8, 0, 0, len * 0.3]).fill(0xffffff);
+        .poly([-6, 0, 6, 0, 0, len]).fill({ color: c[0], alpha: 0.85 })
+        .poly([-3.5, 0, 3.5, 0, 0, len * 0.62]).fill(c[1])
+        .poly([-1.8, 0, 1.8, 0, 0, len * 0.3]).fill(c[2]);
     });
     for (const s of this.nozzleGlows) {
       s.alpha = 0.7 + Math.random() * 0.3;

@@ -41,7 +41,7 @@ export class Effects extends Container {
 
   explosion(x, y, scale = 1) {
     this.burst(x, y, { count: 24, speed: 280 * scale, size: 62 * scale });
-    this.burst(x, y, { count: 8, speed: 120 * scale, size: 100 * scale, c1: 0xffffff, c2: 0xff8a00, life: 0.4 });
+    this.burst(x, y, { count: 8, speed: 120 * scale, size: 60 * scale, c1: 0xffffff, c2: 0xff8a00, life: 0.4 });
     this.ring(x, y, 0xffb060, 100 * scale);
   }
 

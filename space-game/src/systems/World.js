@@ -3,17 +3,18 @@ import { Container } from 'pixi.js';
 export class World {
   constructor() {
     this.objects = new Container(); // hazards + coins
-    this.shots = new Container();   // bullets + missiles
+    this.shots = new Container();   // player + enemy bullets
     this.asteroids = [];
     this.satellites = [];
     this.enemies = [];
     this.coins = [];
-    this.bullets = [];
+    this.bullets = [];     // player's bullets / missiles
+    this.enemyShots = [];  // bullets fired by enemy ships
   }
 
   add(list, obj) {
     list.push(obj);
-    (list === this.bullets ? this.shots : this.objects).addChild(obj);
+    (list === this.bullets || list === this.enemyShots ? this.shots : this.objects).addChild(obj);
     return obj;
   }
 
@@ -23,12 +24,12 @@ export class World {
     obj.destroy({ children: true });
   }
 
-  hazards() { return [...this.asteroids, ...this.satellites, ...this.enemies]; }
+  hazards() { return [...this.asteroids, ...this.satellites, ...this.enemies, ...this.enemyShots]; }
 
   fadeHazards() { for (const h of this.hazards()) h.fading = true; }
 
   clear() {
-    for (const list of [this.asteroids, this.satellites, this.enemies, this.coins, this.bullets]) {
+    for (const list of [this.asteroids, this.satellites, this.enemies, this.coins, this.bullets, this.enemyShots]) {
       for (const o of list) o.destroy({ children: true });
       list.length = 0;
     }
@@ -51,7 +52,14 @@ export class World {
     };
     sweep(this.asteroids, a => { a.update(wdt); if (off(a)) this.remove(this.asteroids, a); });
     sweep(this.satellites, s => { s.update(wdt); if (off(s)) this.remove(this.satellites, s); });
-    sweep(this.enemies, e => { e.update(dt, player, screen); if (e.gone) this.remove(this.enemies, e); });
+    sweep(this.enemies, e => {
+      e.update(dt, player, screen, this, effects);
+      if (e.gone) this.remove(this.enemies, e);
+    });
+    sweep(this.enemyShots, s => {
+      s.update(dt);
+      if (s.y > screen.height + 120 || s.y < -400 || s.x < -200 || s.x > screen.width + 200) this.remove(this.enemyShots, s);
+    });
 
     for (let i = this.coins.length - 1; i >= 0; i--) {
       const c = this.coins[i];
@@ -60,7 +68,7 @@ export class World {
     }
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       const b = this.bullets[i];
-      b.update(dt, effects);
+      b.update(dt, effects, this);
       if (b.gone) this.remove(this.bullets, b);
     }
   }

@@ -1,5 +1,5 @@
 import { Container, Graphics } from 'pixi.js';
-import { FUELS } from '../config.js';
+import { FUELS, PARTS, EXHAUSTS } from '../config.js';
 import { lerpColor } from '../utils/color.js';
 import { glowSprite } from '../utils/textures.js';
 import { makeText, makeButton, coinIcon } from './widgets.js';
@@ -162,7 +162,7 @@ export class ShopScreen extends Container {
     coins.position.set(w - 112 + 34, 21);
 
     const hint = makeText(
-      this.msg || (station.kind === 'fuel' ? 'One fuel purchase per visit' : 'Ship parts arriving soon'),
+      this.msg || (station.kind === 'fuel' ? 'One fuel purchase per visit' : 'Buy as much as you can afford'),
       13, this.msg ? 0x7dffb0 : 0x8aa2c8, false,
     );
     hint.anchor.set(0.5, 0);
@@ -238,29 +238,149 @@ export class ShopScreen extends Container {
 
   buildParts(L) {
     const { w } = this;
-    const cols = L.compact ? 2 : 3;
-    const rows = L.compact ? 3 : 2;
-    const gap = 12;
-    const cw = Math.min(260, (w - 32 - gap * (cols - 1)) / cols);
-    const ch = clamp((L.availH - gap * (rows - 1)) / rows, 70, 150);
-    const x0 = (w - (cw * cols + gap * (cols - 1))) / 2;
-    for (let i = 0; i < cols * rows; i++) {
-      const c = new Container();
-      c.position.set(x0 + (i % cols) * (cw + gap), L.cardsTop + Math.floor(i / cols) * (ch + gap));
-      const bg = new Graphics().roundRect(0, 0, cw, ch, 14).fill({ color: 0x0e1729, alpha: 0.9 }).stroke({ width: 2, color: 0x6a5a9a, alpha: 0.6 });
-      const lock = new Graphics()
-        .roundRect(-12, -2, 24, 18, 4).fill(0x8a7fb0)
-        .arc(0, -2, 8, Math.PI, 0).stroke({ width: 3, color: 0x8a7fb0 });
-      lock.position.set(cw / 2, ch / 2 - 12);
-      const t1 = makeText(`PART SLOT ${i + 1}`, 14, 0xc9bdf0);
-      t1.anchor.set(0.5);
-      t1.position.set(cw / 2, ch / 2 + 16);
-      const t2 = makeText('COMING SOON', 11, 0x8a95aa, false);
-      t2.anchor.set(0.5);
-      t2.position.set(cw / 2, ch / 2 + 34);
-      c.addChild(bg, lock, t1, t2);
-      this.content.addChild(c);
+    const S = this.state;
+    const sd = PARTS.seeker, sh = PARTS.shield;
+    const status = (cost, blocked) => {
+      if (blocked) return { label: blocked, disabled: true };
+      if (S.coins < cost) return { label: `NEED ${cost - S.coins} MORE`, disabled: true };
+      return { label: 'BUY', disabled: false };
+    };
+    const A = {
+      color: 0xff6b6b, title: sd.name, cost: sd.cost,
+      line1: `Pack of ${sd.pack}   -   In stock: ${S.seekers}/${sd.max}`,
+      line2: 'Auto-locks and destroys ANY enemy ship in one hit',
+      ...status(sd.cost, S.seekers >= sd.max ? 'FULL' : ''),
+      onTap: () => this.buySeeker(sd),
+    };
+    const B = {
+      color: 0x7fe8ff, title: sh.name, cost: sh.cost,
+      line1: `Absorbs ${sh.charges} asteroid hits`,
+      line2: 'No damage from the next 2 meteor crashes',
+      ...status(sh.cost, S.shield > 0 ? `ACTIVE - ${S.shield} LEFT` : ''),
+      onTap: () => this.buyShield(sh),
+    };
+    if (L.compact) {
+      const cw = w - 32, chA = 100;
+      this.content.addChild(this.partCard(A, 16, L.cardsTop, cw, chA, true));
+      this.content.addChild(this.partCard(B, 16, L.cardsTop + chA + 10, cw, chA, true));
+      const y3 = L.cardsTop + 2 * (chA + 10);
+      this.content.addChild(this.exhaustCard(16, y3, cw, Math.max(190, L.exitY - 12 - y3), true));
+    } else {
+      const cw = Math.min(300, (w - 64) / 3);
+      const ch = Math.min(L.availH, 330);
+      const x0 = (w - (cw * 3 + 32)) / 2;
+      this.content.addChild(this.partCard(A, x0, L.cardsTop, cw, ch, false));
+      this.content.addChild(this.partCard(B, x0 + cw + 16, L.cardsTop, cw, ch, false));
+      this.content.addChild(this.exhaustCard(x0 + 2 * (cw + 16), L.cardsTop, cw, ch, false));
     }
+  }
+
+  partCard(I, x, y, cw, ch, compact) {
+    const c = new Container();
+    c.position.set(x, y);
+    const bg = new Graphics()
+      .roundRect(0, 0, cw, ch, 14).fill({ color: 0x0e1729, alpha: 0.94 })
+      .stroke({ width: 2, color: I.color, alpha: 0.7 });
+    const title = makeText(I.title, compact ? 17 : 20, I.color);
+    title.position.set(14, 10);
+    const maxW = compact ? cw - 28 - 70 : cw - 28;
+    if (title.width > maxW) title.scale.set(maxW / title.width);
+    const l1 = makeText(I.line1, compact ? 13 : 15, 0xffffff);
+    l1.position.set(14, compact ? 34 : 44);
+    const l2 = makeText(I.line2, compact ? 12 : 14, 0xa9b8d4, false);
+    l2.style.wordWrap = true;
+    l2.style.wordWrapWidth = compact ? cw - 28 - 124 : cw - 28;
+    l2.position.set(14, compact ? 54 : 72);
+
+    const price = makeText(String(I.cost), 20, 0xffffff);
+    const icon = coinIcon(9);
+    let btnX, btnY, btnW;
+    if (compact) {
+      price.anchor.set(1, 0);
+      price.position.set(cw - 14, 10);
+      icon.position.set(cw - 14 - price.width - 14, 22);
+      btnW = 110; btnX = cw - 14 - btnW; btnY = ch - 50;
+    } else {
+      price.position.set(36, ch - 92);
+      icon.position.set(22, ch - 80);
+      btnW = cw - 28; btnX = 14; btnY = ch - 54;
+    }
+    const btn = makeButton(I.label, btnW, 40, I.color, I.onTap, I.disabled);
+    btn.position.set(btnX, btnY);
+    c.addChild(bg, title, l1, l2, icon, price, btn);
+    return c;
+  }
+
+  exhaustCard(x, y, cw, ch, compact) {
+    const S = this.state;
+    const c = new Container();
+    c.position.set(x, y);
+    const bg = new Graphics()
+      .roundRect(0, 0, cw, ch, 14).fill({ color: 0x0e1729, alpha: 0.94 })
+      .stroke({ width: 2, color: 0xffb347, alpha: 0.7 });
+    const title = makeText('EXHAUST FUMES', compact ? 17 : 20, 0xffb347);
+    title.position.set(14, 10);
+    c.addChild(bg, title);
+
+    const ids = ['default', 'tricolor', 'stars', 'fire'];
+    const top = compact ? 38 : 46;
+    const rh = clamp((ch - top - 8) / 4, 30, 52);
+    const bw = compact ? 96 : 104;
+    ids.forEach((id, i) => {
+      const d = EXHAUSTS[id];
+      const ry = top + i * rh;
+      d.preview.forEach((col, j) => {
+        c.addChild(new Graphics().circle(22 + j * 12, ry + rh / 2, 5).fill(col));
+      });
+      const name = makeText(d.name, compact ? 12 : 13, 0xffffff);
+      const avail = cw - 14 - bw - 64 - 6;
+      if (name.width > avail) name.scale.set(avail / name.width);
+      name.anchor.set(0, 0.5);
+      name.position.set(64, ry + rh / 2);
+
+      const owned = !!S.exhaustOwned[id];
+      let label, disabled = false;
+      if (S.exhaust === id) { label = 'EQUIPPED'; disabled = true; }
+      else if (owned) label = 'EQUIP';
+      else { label = `BUY ${d.cost}`; disabled = S.coins < d.cost; }
+      const btn = makeButton(label, bw, rh - 8, 0xffb347, () => this.exhaustAction(d), disabled);
+      btn.position.set(cw - 14 - bw, ry + 4);
+      c.addChild(name, btn);
+    });
+    return c;
+  }
+
+  buySeeker(def) {
+    const S = this.state;
+    if (this.phase !== 'idle' || S.coins < def.cost || S.seekers >= def.max) return;
+    S.coins -= def.cost;
+    S.seekers = Math.min(def.max, S.seekers + def.pack);
+    this.msg = `+${def.pack} TARGETING MISSILES LOADED  -  press MISSILE when an enemy is on screen`;
+    this.build();
+  }
+
+  buyShield(def) {
+    const S = this.state;
+    if (this.phase !== 'idle' || S.coins < def.cost || S.shield > 0) return;
+    S.coins -= def.cost;
+    S.shield = def.charges;
+    this.msg = `ASTEROID PROTECTOR ONLINE  -  ${def.charges} HITS`;
+    this.build();
+  }
+
+  exhaustAction(def) {
+    const S = this.state;
+    if (this.phase !== 'idle') return;
+    if (!S.exhaustOwned[def.id]) {
+      if (S.coins < def.cost) return;
+      S.coins -= def.cost;
+      S.exhaustOwned[def.id] = true;
+      this.msg = `${def.name} EXHAUST UNLOCKED AND EQUIPPED`;
+    } else {
+      this.msg = `${def.name} EXHAUST EQUIPPED`;
+    }
+    S.exhaust = def.id;
+    this.build();
   }
 
   buy(def) {

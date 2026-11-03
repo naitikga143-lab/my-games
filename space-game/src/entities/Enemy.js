@@ -1,8 +1,35 @@
 import { Container, Graphics } from 'pixi.js';
 import { glowSprite } from '../utils/textures.js';
+import { EnemyBullet } from './EnemyBullet.js';
 
 const mir = p => p.map((v, i) => (i % 2 === 0 ? -v : v));
 const same = p => p;
+const rnd = (a, b) => a + Math.random() * (b - a);
+
+// How each ship attacks. Bigger ship = bigger shots = more damage.
+// (player has 100 HP; dmg = HP lost per bullet that hits)
+const FIRE = {
+  scout: { // 1 small fast shot
+    interval: [1.4, 2.0],
+    volley: a => [{ a, ox: 0, dmg: 6, speed: 310, size: 6, color: 0xff7a3d }],
+  },
+  fighter: { // 2 shots from the twin cannons
+    interval: [1.7, 2.3],
+    volley: a => [-30, 30].map(ox => ({ a, ox, dmg: 10, speed: 330, size: 7, color: 0xc084fc })),
+  },
+  gunship: { // 3-shot spread
+    interval: [2.1, 2.8],
+    volley: a => [-0.22, 0, 0.22].map(d => ({ a: a + d, ox: 0, dmg: 14, speed: 290, size: 9, color: 0x7dffb0 })),
+  },
+  dreadnought: { // huge plasma orb + 2 side shots
+    interval: [2.6, 3.3],
+    volley: a => [
+      { a, ox: 0, dmg: 30, speed: 230, size: 16, color: 0xff3b3b },
+      { a: a - 0.35, ox: -40, dmg: 10, speed: 280, size: 8, color: 0xff8a5a },
+      { a: a + 0.35, ox: 40, dmg: 10, speed: 280, size: 8, color: 0xff8a5a },
+    ],
+  },
+};
 
 // All art is drawn nose-UP, then flipped so the nose faces the player.
 const TYPES = {
@@ -102,15 +129,40 @@ export class Enemy extends Container {
     this.dir = Math.random() < 0.5 ? -1 : 1;
     this.hoverY = 90 + Math.random() * screen.height * 0.18; // stays in the TOP area
     this.gone = false;
+    this.fire = FIRE[type];
+    this.fireT = 1.4 + Math.random(); // first shot comes a bit after spawning
 
     this.art = T.draw();
     this.art.rotation = Math.PI;
     this.bar = new Graphics();
     this.bar.visible = false;
-    this.addChild(this.art, this.bar);
+    this.marked = 0; // set by targeting missiles
+    this.reticle = new Graphics();
+    this.reticle.visible = false;
+    const RR = this.radius * 1.3;
+    for (let i = 0; i < 4; i++) {
+      const a = (i * Math.PI) / 2;
+      this.reticle.moveTo(Math.cos(a - 0.3) * RR, Math.sin(a - 0.3) * RR).arc(0, 0, RR, a - 0.3, a + 0.3);
+    }
+    this.reticle.stroke({ width: 3, color: 0xff4d4d });
+    this.addChild(this.art, this.bar, this.reticle);
 
     this.x = this.radius + Math.random() * (screen.width - this.radius * 2);
     this.y = -this.radius - 40;
+  }
+
+  shoot(player, world, effects) {
+    const f = this.fire;
+    this.fireT = rnd(f.interval[0], f.interval[1]);
+    const mx = this.x, my = this.y + this.radius * 0.55;
+    const aim = Math.atan2(player.y - my, player.x - mx);
+    const shots = f.volley(aim);
+    for (const s of shots) {
+      world.add(world.enemyShots, new EnemyBullet(mx + s.ox, my, s.a, s.speed, s.dmg, s.size, s.color));
+    }
+    if (effects) {
+      effects.burst(mx, my, { count: 5, speed: 90, size: 20, life: 0.25, c1: 0xffffff, c2: shots[0].color });
+    }
   }
 
   hurt(d) {
@@ -125,7 +177,7 @@ export class Enemy extends Container {
     return this.hp <= 0;
   }
 
-  update(dt, player, screen) {
+  update(dt, player, screen, world, effects) {
     this.t += dt;
     this.life -= dt;
     if (this.life <= 0) { // time is up: fly away upwards
@@ -152,7 +204,18 @@ export class Enemy extends Container {
         this.y = Math.max(this.radius * 0.4, this.y);
       }
     }
+    if (world && this.life > 0 && player.alive && this.y > 30) { // attack!
+      this.fireT -= dt;
+      if (this.fireT <= 0) this.shoot(player, world, effects);
+    }
     this.art.y = Math.sin(this.t * 2) * 5;
+    if (this.marked > 0) {
+      this.marked -= dt;
+      this.reticle.visible = true;
+      this.reticle.rotation += dt * 2.5;
+    } else {
+      this.reticle.visible = false;
+    }
     if (this.hit > 0) {
       this.hit -= dt;
       this.art.scale.set(1 + Math.max(0, this.hit) * 0.6);

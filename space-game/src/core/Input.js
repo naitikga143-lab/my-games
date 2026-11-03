@@ -57,6 +57,10 @@ export class Input {
 
   setButtonVisible(v) { if (this.button) this.button.style.display = v ? 'block' : 'none'; }
 
+  setMissileLabel(text) {
+    if (this.button && this.button.textContent !== text) this.button.textContent = text;
+  }
+
   clear() {
     this.keys.clear();
     this.touch = null;

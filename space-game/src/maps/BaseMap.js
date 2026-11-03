@@ -8,8 +8,8 @@ export class BaseMap {
     this.foreground = new Container(); // effects drawn above the ship
   }
 
-  // wdt = world time (0 while the map is stopped)
-  update(wdt, player) {}
+  // wdt = world time (0 while the map is stopped), speed = world speed, dt = real time
+  update(wdt, player, speed, dt) {}
 
   resize(w, h) {}
 }
