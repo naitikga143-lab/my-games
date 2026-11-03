@@ -14,6 +14,30 @@ const WS_URL = import.meta.env.DEV
   ? `ws://${location.hostname}:3000/ws`
   : `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
 
+/* ================== ADSTERRA BANNER (320x50) ================== */
+const AD = {
+  key: '2f567f3a00890cda803ca65a66cfa9e4',
+  src: 'https://bauval.org/22/2f567f3a00890cda803ca65a66cfa9e4',
+  width: 320,
+  height: 50,
+};
+let adMounted = false;
+function mountAd() {
+  if (adMounted || import.meta.env.DEV) return;
+  adMounted = true;
+  const f = document.createElement('iframe');
+  f.title = 'Advertisement';
+  f.width = AD.width;
+  f.height = AD.height;
+  f.scrolling = 'no';
+  f.setAttribute('frameborder', '0');
+  f.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border:0;overflow:hidden;max-width:100%';
+  f.srcdoc = '<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;background:transparent">'
+    + '<scr' + 'ipt>atOptions = ' + JSON.stringify({ key: AD.key, format: 'iframe', height: AD.height, width: AD.width, params: {} }) + ';</scr' + 'ipt>'
+    + '<scr' + 'ipt src="' + AD.src + '"></scr' + 'ipt></body></html>';
+  document.getElementById('adSlot').appendChild(f);
+}
+
 const S = {
   ws: null,
   token: sessionStorage.getItem('ch_token') || '',
@@ -108,6 +132,7 @@ function send(obj) {
 
 function show(screen) {
   root.dataset.screen = screen;
+  if (screen !== 'title') mountAd();
   $('sTitle').hidden = screen !== 'title';
   $('sHome').hidden = screen !== 'home';
   $('sSeek').hidden = screen !== 'seek';
