@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { Sfx } from './sfx.js';
 
 const { clamp, damp } = THREE.MathUtils;
 const UP = new THREE.Vector3(0, 1, 0);
@@ -86,38 +87,92 @@ function emblemTexture() {
   });
 }
 
-// skull ke points: canvas par skull bana ke pixels sample karte hain
+// Skull: canvas par detail wala skull banake uske pixels sample karte hain
+// (cranium, aankhon ke gaddhe, naak, gaal ke gaddhe, jabda aur daant). Kinare zyada points => outline saaf.
 let SKULL = null;
-function skullPoints(n) {
+function skullData() {
   if (SKULL) return SKULL;
-  const S = 64;
+  const S = 128;
   const c = document.createElement('canvas');
   c.width = c.height = S;
   const g = c.getContext('2d');
+  const rrect = (x, y, w, h, r) => {
+    g.beginPath();
+    g.moveTo(x + r, y);
+    g.arcTo(x + w, y, x + w, y + h, r);
+    g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r);
+    g.arcTo(x, y, x + w, y, r);
+    g.closePath();
+  };
+  const ell = (cx, cy, rx, ry, rot = 0) => { g.beginPath(); g.ellipse(cx, cy, rx, ry, rot, 0, Math.PI * 2); };
+
   g.fillStyle = '#000'; g.fillRect(0, 0, S, S);
   g.fillStyle = '#fff';
-  g.beginPath(); g.arc(32, 27, 21, 0, Math.PI * 2); g.fill();
-  g.fillRect(21, 38, 22, 20);
+  ell(64, 52, 39, 37); g.fill();            // cranium
+  rrect(38, 72, 52, 30, 12); g.fill();      // gaal + upar ka jabda
+  rrect(46, 98, 36, 19, 8); g.fill();       // neeche ka jabda
   g.fillStyle = '#000';
-  g.beginPath(); g.arc(23, 29, 6.5, 0, Math.PI * 2); g.fill();
-  g.beginPath(); g.arc(41, 29, 6.5, 0, Math.PI * 2); g.fill();
-  g.beginPath(); g.moveTo(32, 36); g.lineTo(28.5, 44); g.lineTo(35.5, 44); g.closePath(); g.fill();
-  g.fillRect(26.2, 48, 1.6, 10); g.fillRect(31.2, 48, 1.6, 10); g.fillRect(36.2, 48, 1.6, 10);
+  ell(48, 62, 11, 13, -0.15); g.fill();     // aankhon ke gaddhe
+  ell(80, 62, 11, 13, 0.15); g.fill();
+  g.beginPath(); g.moveTo(64, 74); g.lineTo(57, 90); g.lineTo(64, 86); g.lineTo(71, 90); g.closePath(); g.fill(); // naak
+  ell(41, 86, 3.5, 7); g.fill();            // gaal ke gaddhe
+  ell(87, 86, 3.5, 7); g.fill();
+  for (const x of [55, 59.5, 64, 68.5, 73]) g.fillRect(x - 0.75, 100, 1.5, 14); // daant
+  g.fillRect(50, 105.2, 28, 1.6);
+
   const d = g.getImageData(0, 0, S, S).data;
-  const lit = [];
-  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) if (d[(y * S + x) * 4] > 128) lit.push([x, y]);
-  for (let i = lit.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [lit[i], lit[j]] = [lit[j], lit[i]];
+  const lit = (x, y) => x >= 0 && y >= 0 && x < S && y < S && d[(y * S + x) * 4] > 128;
+  const edges = [], inner = [];
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      if (!lit(x, y)) continue;
+      const e = !lit(x + 1, y) || !lit(x - 1, y) || !lit(x, y + 1) || !lit(x, y - 1);
+      (e ? edges : inner).push([x, y]);
+    }
   }
-  const out = new Float32Array(n * 2);
-  for (let i = 0; i < n; i++) {
-    const p = lit[i % lit.length];
-    out[i * 2] = (p[0] - 32) / 32;
-    out[i * 2 + 1] = (32 - p[1]) / 32;
+  const shuffle = (a) => {
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+  };
+  shuffle(edges); shuffle(inner);
+
+  const NE = 200, NI = 140, NEYE = 22;
+  const n = NE + NI + NEYE;
+  const uv = new Float32Array(n * 2);
+  const kind = new Uint8Array(n);   // 0 andar, 1 kinara, 2 aankh
+  const jaw = new Uint8Array(n);    // 1 = neeche ka jabda (hilta hai)
+  const dz = new Float32Array(n);   // thodi gehrai (gumbad jaisa)
+  const put = (i, x, y, k) => {
+    const u = (x - 64) / 64, v = (64 - y) / 64;
+    uv[i * 2] = u; uv[i * 2 + 1] = v;
+    kind[i] = k;
+    jaw[i] = k !== 2 && y > 98 ? 1 : 0;
+    dz[i] = k === 2 ? -0.05 : 0.45 * Math.max(0, 1 - (u * u * 1.6 + (v - 0.2) * (v - 0.2) * 1.1));
+  };
+  for (let i = 0; i < NE; i++) { const p = edges[i % edges.length]; put(i, p[0], p[1], 1); }
+  for (let i = 0; i < NI; i++) { const p = inner[i % inner.length]; put(NE + i, p[0], p[1], 0); }
+  for (let i = 0; i < NEYE; i++) {
+    const L = i % 2 === 0;
+    const cx = L ? 48 : 80, cy = 62, a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * 0.7;
+    put(NE + NI + i, cx + 11 * r * Math.cos(a), cy + 13 * r * Math.sin(a), 2);
   }
-  SKULL = out;
-  return out;
+  SKULL = { n, uv, kind, jaw, dz };
+  return SKULL;
+}
+
+// naram gol bindu (square points ki jagah)
+function dotTexture() {
+  return canvasTex(32, 32, (g) => {
+    const grd = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+    grd.addColorStop(0, 'rgba(255,255,255,1)');
+    grd.addColorStop(0.45, 'rgba(255,255,255,0.7)');
+    grd.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = grd;
+    g.fillRect(0, 0, 32, 32);
+  });
 }
 
 /* ====================== chingaari pool (ek hi draw call) ====================== */
@@ -241,6 +296,7 @@ class Anar {
     this.mesh.visible = false;
     this.bMat.opacity = 0;
     for (const f of this.flies) f.g.visible = false;
+    if (this.snd) { this.snd.stop(); this.snd = null; }
   }
 
   update(dt, time) {
@@ -258,6 +314,8 @@ class Anar {
         pos.y = 0.2;
         this.mesh.position.copy(pos);
         this.mesh.rotation.set(0, 0, 0);
+        s.sfx.thud(pos, 0.4);
+        s.sfx.fuse(pos);
         this.state = 'wait'; this.t = 0;
       }
       return;
@@ -266,13 +324,14 @@ class Anar {
     if (this.state === 'wait') {
       // jalne se pehle halki chingaari (player ko pata chale)
       sp.emit(pos.x, pos.y + 0.25, pos.z, rnd(-0.5, 0.5), rnd(1, 2), rnd(-0.5, 0.5), 1, 0.7, 0.2, 0.3, 4);
-      if (this.t > 0.35) { this.state = 'burn'; this.t = 0; }
+      if (this.t > 0.35) { this.state = 'burn'; this.t = 0; this.snd = s.sfx.anarLoop(pos); }
       return;
     }
 
     // burn: fountain
     const L = CRACKER.ANAR_LIFE;
     const k = clamp(this.t / 0.2, 0, 1) * clamp((L - this.t) / 0.8, 0, 1);
+    if (this.snd) this.snd.update(pos, k);
     this.acc += dt * 60 * k;
     while (this.acc >= 1) {
       this.acc -= 1;
@@ -357,6 +416,7 @@ class Chakri {
     this.active = false;
     this.mesh.visible = false;
     this.funnel.visible = false;
+    if (this.snd) { this.snd.stop(); this.snd = null; }
   }
 
   update(dt) {
@@ -373,6 +433,8 @@ class Chakri {
         pos.y = 0.05;
         this.state = 'spin'; this.t = 0;
         this.funnel.visible = true;
+        s.sfx.thud(pos, 0.4);
+        this.snd = s.sfx.chakriLoop(pos);
       }
       return;
     }
@@ -393,6 +455,7 @@ class Chakri {
     }
     this.mesh.position.copy(pos);
     this.mesh.rotation.y += dt * 16;
+    if (this.snd) this.snd.update(pos, k);
 
     // chakri: zameen par ghoomta hua gol spiral (4 arms), chingaari side mein bahar jaati hai
     for (let i = 0; i < this.M; i++) {
@@ -469,9 +532,14 @@ class Rocket {
     this.mesh.visible = true;
     this.acc = 0;
     this.active = true;
+    this.snd = s.sfx.rocketFly(from);
   }
 
-  stop() { this.active = false; this.mesh.visible = false; }
+  stop() {
+    this.active = false;
+    this.mesh.visible = false;
+    if (this.snd) { this.snd.stop(); this.snd = null; }
+  }
 
   update(dt) {
     const s = this.sys, pos = this.pos;
@@ -479,6 +547,7 @@ class Rocket {
     pos.addScaledVector(this.dir, step);
     this.left -= step;
     this.mesh.position.copy(pos);
+    if (this.snd) this.snd.update(pos, 1);
 
     this.acc += dt * 90;
     while (this.acc >= 1) {
@@ -502,6 +571,7 @@ class Rocket {
     _v.set(pos.x, Math.max(pos.y, 0.6) + 1.0, pos.z);
     s.stars.spawn(_v);
     s.addShake(pos, 0.2);
+    s.sfx.rocketBang(pos);
     this.stop();
   }
 }
@@ -557,6 +627,7 @@ class Bomb {
     this.active = false;
     this.mesh.visible = false;
     this.zone.visible = false;
+    if (this.snd) { this.snd.stop(); this.snd = null; }
   }
 
   update(dt) {
@@ -588,6 +659,8 @@ class Bomb {
         pos.y = 0.26;
         this.mesh.position.copy(pos);
         this.mesh.rotation.set(0, 0, 0);
+        s.sfx.thud(pos, 1);
+        this.snd = s.sfx.bombFuse(pos);
         this.state = 'fuse'; this.t = 0;
       }
       return;
@@ -596,6 +669,7 @@ class Bomb {
     // fuse jal rahi hai, bomb laal blink karta hai
     this.mat.color.setHex(Math.sin(this.t * (8 + this.t * 14)) > 0 ? 0xff2a1a : 0x222222);
     s.sparks.emit(pos.x, pos.y + 0.32, pos.z, rnd(-0.6, 0.6), rnd(1, 2.4), rnd(-0.6, 0.6), 1, 0.7, 0.2, 0.35, 5);
+    if (this.snd) this.snd.update(pos, 1, this.t / CRACKER.BOMB_FUSE);
     if (this.t >= CRACKER.BOMB_FUSE) this.explode();
   }
 
@@ -606,6 +680,8 @@ class Bomb {
     s.sparks.burst(pos, 46, 3, 9, 1.0, [0xff5a1f, 0xff2a1a, 0xffa030], 7);
     s.skulls.spawn(pos.x, pos.y + 2.4, pos.z);
     s.addShake(pos, 0.6);
+    if (this.snd) { this.snd.stop(); this.snd = null; }
+    s.sfx.bombBoom(pos);
     this.mesh.visible = false;
     this.disc.visible = false;
     this.state = 'boom'; this.t = 0;
@@ -703,8 +779,9 @@ class EmblemPool {
 class SkullPool {
   constructor(sys, cap) {
     this.sys = sys;
-    this.N = 190;
-    this.uv = skullPoints(this.N);
+    this.d = skullData();
+    this.N = this.d.n;
+    const dot = dotTexture();
     this.list = [];
     for (let i = 0; i < cap; i++) {
       const pos = new Float32Array(this.N * 3);
@@ -713,7 +790,7 @@ class SkullPool {
       g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
       g.setAttribute('color', new THREE.BufferAttribute(col, 3));
       const pts = new THREE.Points(g, new THREE.PointsMaterial({
-        size: 0.19, vertexColors: true, transparent: true, depthWrite: false,
+        size: 0.2, map: dot, vertexColors: true, transparent: true, depthWrite: false,
         blending: THREE.AdditiveBlending, toneMapped: false,
       }));
       pts.frustumCulled = false;
@@ -721,7 +798,7 @@ class SkullPool {
       sys.scene.add(pts);
       this.list.push({
         pts, pos, col, bv: new Float32Array(this.N * 3),
-        c: new THREE.Vector3(), right: new THREE.Vector3(1, 0, 0), t: 0, on: false,
+        c: new THREE.Vector3(), right: new THREE.Vector3(1, 0, 0), nrm: new THREE.Vector3(0, 0, 1), t: 0, on: false,
       });
     }
   }
@@ -731,6 +808,7 @@ class SkullPool {
     s.on = true; s.t = 0;
     s.c.set(x, y, z);
     s.right.copy(this.sys.camRight);
+    s.nrm.set(-s.right.z, 0, s.right.x); // camera ki taraf
     for (let i = 0; i < this.N; i++) {
       _v.set(rnd(-1, 1), rnd(-0.3, 1), rnd(-1, 1)).normalize().multiplyScalar(rnd(1.5, 3.4));
       s.bv[i * 3] = _v.x; s.bv[i * 3 + 1] = _v.y; s.bv[i * 3 + 2] = _v.z;
@@ -741,25 +819,43 @@ class SkullPool {
   clear() { for (const s of this.list) { s.on = false; s.pts.visible = false; } }
 
   update(dt) {
-    const SC = 2.4, LIFE = 3.6;
+    const SC = 2.8, LIFE = 4.0;
+    const { uv, kind, jaw, dz } = this.d;
     for (const s of this.list) {
       if (!s.on) continue;
       s.t += dt;
       const t = s.t;
       if (t >= LIFE) { s.on = false; s.pts.visible = false; continue; }
-      const e1 = easeOut(clamp(t / 0.45, 0, 1));    // pehle bikharte hain
-      const m = ease(clamp((t - 0.35) / 0.7, 0, 1)); // phir skull mein jud jaate hain
-      const fade = clamp((LIFE - t) / 0.8, 0, 1);
-      const rise = t * 0.2;
+      const e1 = easeOut(clamp(t / 0.45, 0, 1));      // pehle bikharte hain
+      const m = ease(clamp((t - 0.35) / 0.75, 0, 1)); // phir skull mein jud jaate hain
+      const fade = clamp((LIFE - t) / 0.9, 0, 1);
+      const dis = 1 - fade;                            // aakhir mein bikhar kar upar udta hai
+      const pulse = 0.86 + 0.14 * Math.sin(t * 6);
+      const yaw = 0.35 * Math.sin(t * 1.3) * m;        // halka ghoomta hai
+      const cy = Math.cos(yaw), sy = Math.sin(yaw);
+      const jawOpen = m > 0.95 ? Math.max(0, Math.sin(t * 10)) * 0.1 : 0; // jabda chalta hai (hansta skull)
+      const rise = t * 0.15 + dis * dis * 1.2;
+      const lit = fade * (0.55 + 0.45 * m) * pulse;
+      const eyeOn = clamp((m - 0.5) * 2, 0, 1) * fade;
+
       for (let i = 0; i < this.N; i++) {
         const j = i * 3;
         const bx = s.c.x + s.bv[j] * e1, by = s.c.y + s.bv[j + 1] * e1, bz = s.c.z + s.bv[j + 2] * e1;
-        const u = this.uv[i * 2], v = this.uv[i * 2 + 1];
-        const tx = s.c.x + s.right.x * u * SC, ty = s.c.y + v * SC + rise, tz = s.c.z + s.right.z * u * SC;
-        s.pos[j] = bx + (tx - bx) * m;
-        s.pos[j + 1] = by + (ty - by) * m;
-        s.pos[j + 2] = bz + (tz - bz) * m;
-        s.col[j] = fade; s.col[j + 1] = 0.12 * fade; s.col[j + 2] = 0.06 * fade;
+        const X = uv[i * 2] * SC, Z = dz[i] * SC;
+        const xr = X * cy + Z * sy, zr = -X * sy + Z * cy;
+        const ty = s.c.y + (uv[i * 2 + 1] - (jaw[i] ? jawOpen : 0)) * SC + rise;
+        const tx = s.c.x + s.right.x * xr + s.nrm.x * zr;
+        const tz = s.c.z + s.right.z * xr + s.nrm.z * zr;
+        s.pos[j] = bx + (tx - bx) * m + s.bv[j] * dis * 0.3;
+        s.pos[j + 1] = by + (ty - by) * m + s.bv[j + 1] * dis * 0.3;
+        s.pos[j + 2] = bz + (tz - bz) * m + s.bv[j + 2] * dis * 0.3;
+        const k = kind[i];
+        if (k === 1) { s.col[j] = lit; s.col[j + 1] = 0.16 * lit; s.col[j + 2] = 0.08 * lit; }
+        else if (k === 0) { s.col[j] = 0.7 * lit; s.col[j + 1] = 0.05 * lit; s.col[j + 2] = 0.04 * lit; }
+        else { // aankhon mein jalti chingaari
+          const f = eyeOn * (0.75 + 0.25 * Math.sin(t * 20 + i));
+          s.col[j] = f; s.col[j + 1] = 0.7 * f; s.col[j + 2] = 0.18 * f;
+        }
       }
       s.pts.geometry.attributes.position.needsUpdate = true;
       s.pts.geometry.attributes.color.needsUpdate = true;
@@ -921,6 +1017,7 @@ export class CrackerSystem {
     this.stars = new StarPool(this, 21);
     this.emblems = new EmblemPool(this, 2);
     this.skulls = new SkullPool(this, 2);
+    this.sfx = new Sfx();
     this.bubbles = new BubbleSystem(this);
 
     this.pools = {
@@ -958,6 +1055,7 @@ export class CrackerSystem {
     const it = this.pools[type] && this.pools[type].find((x) => !x.active);
     if (!it) return false;
     it.spawn(from, target);
+    this.sfx.toss(from, type);
     this.last = type;
     this.gap = CRACKER.GLOBAL_GAP;
     return true;
@@ -998,6 +1096,7 @@ export class CrackerSystem {
       _w.y = 0;
       if (_w.lengthSq() > 1e-4) this.camRight.copy(_w.normalize());
     }
+    this.sfx.setListener(playerPos.x, playerPos.y, playerPos.z, this.camRight.x, this.camRight.z);
 
     for (const it of this.items) if (it.active) it.update(dt, time);
     this.stars.update(dt);
