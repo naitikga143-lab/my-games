@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Sfx } from './sfx.js';
+import { getSfx } from './sfx.js';
 
 const { clamp, damp } = THREE.MathUtils;
 const UP = new THREE.Vector3(0, 1, 0);
@@ -1017,7 +1017,7 @@ export class CrackerSystem {
     this.stars = new StarPool(this, 21);
     this.emblems = new EmblemPool(this, 2);
     this.skulls = new SkullPool(this, 2);
-    this.sfx = new Sfx();
+    this.sfx = getSfx();
     this.bubbles = new BubbleSystem(this);
 
     this.pools = {

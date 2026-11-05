@@ -8,9 +8,20 @@
   Kunji M ya top-right ke speaker button se mute.
   Mobile par awaaz pehle tap/touch ke baad hi chalu hoti hai (browser ka rule).
 */
+// gaana: public/audio/bgm.mp3 (build ke baad dist/audio/bgm.mp3)
+const BASE = (import.meta.env && import.meta.env.BASE_URL) || '/';
+export const BGM_URL = `${BASE}audio/bgm.mp3`;
+
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const rnd = (a, b) => a + Math.random() * (b - a);
 const NOP = { update() {}, stop() {} };
+
+let _inst = null;
+// menu aur game dono ek hi Sfx (aur ek hi gaana) use karte hain
+export function getSfx() {
+  if (!_inst) _inst = new Sfx();
+  return _inst;
+}
 
 export class Sfx {
   constructor() {
@@ -19,46 +30,156 @@ export class Sfx {
     this.voices = 0;
     this.L = { x: 0, y: 0, z: 0, rx: 1, rz: 0 }; // sunne wala (player) aur uska "daayan" disha
     this.muted = false;
-    try { this.muted = localStorage.getItem('ch_mute') === '1'; } catch (e) { /* ignore */ }
+    this.vol = { music: 40, fx: 100 }; // 0-100 (slider)
+    this.bgm = null;
+    this.bgmFailed = false;
+    try {
+      this.muted = localStorage.getItem('ch_mute') === '1';
+      const m = parseInt(localStorage.getItem('ch_vol_music'), 10);
+      const f = parseInt(localStorage.getItem('ch_vol_fx'), 10);
+      if (m >= 0 && m <= 100) this.vol.music = m;
+      if (f >= 0 && f <= 100) this.vol.fx = f;
+    } catch (e) { /* ignore */ }
 
+    // pehle tap/touch par audio chalu + gaana shuru (browser ka rule)
     const unlock = () => {
       this._init();
-      if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+      if (!this.ctx) return;
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+      this.startMusic();
     };
     for (const ev of ['pointerup', 'touchend', 'click', 'keydown']) window.addEventListener(ev, unlock, { passive: true });
+
     document.addEventListener('visibilitychange', () => {
       if (!this.ctx) return;
-      if (document.hidden) this.ctx.suspend(); else this.ctx.resume();
+      if (document.hidden) {
+        this.ctx.suspend();
+        if (this.bgm) this.bgm.pause();
+      } else {
+        this.ctx.resume();
+        this.startMusic();
+      }
     });
-    window.addEventListener('keydown', (e) => { if (e.code === 'KeyM' && !e.repeat) this.toggleMute(); });
-    this._button();
+    window.addEventListener('keydown', (e) => {
+      if (e.repeat) return;
+      if (e.code === 'KeyM') this.toggleMute();
+      else if (e.code === 'BracketLeft') this.setVolume('music', this.vol.music - 10);
+      else if (e.code === 'BracketRight') this.setVolume('music', this.vol.music + 10);
+    });
+    this._ui();
   }
 
-  /* ---------------- setup ---------------- */
-  _button() {
+  /* ---------------- volume control (button + slider panel) ---------------- */
+  _ui() {
     const css = document.createElement('style');
-    css.textContent = `#snd-btn{position:fixed;top:calc(max(10px,env(safe-area-inset-top)) + 46px);right:max(10px,env(safe-area-inset-right));
+    css.textContent = `
+#snd-btn{position:fixed;top:calc(max(10px,env(safe-area-inset-top)) + 46px);right:max(10px,env(safe-area-inset-right));
  z-index:70;width:38px;height:38px;border-radius:10px;border:1px solid rgba(255,255,255,.5);background:rgba(0,0,0,.35);
- color:#fff;font:700 18px system-ui,sans-serif;line-height:1;padding:0}`;
+ color:#fff;font:700 18px system-ui,sans-serif;line-height:1;padding:0}
+#snd-panel{position:fixed;top:calc(max(10px,env(safe-area-inset-top)) + 92px);right:max(10px,env(safe-area-inset-right));z-index:71;
+ width:min(240px,72vw);padding:10px 12px;border-radius:14px;background:rgba(10,14,40,.94);border:1px solid rgba(255,255,255,.35);
+ color:#fff;font:600 13px system-ui,sans-serif;display:none;user-select:none;-webkit-user-select:none}
+#snd-panel.open{display:block}
+#snd-panel .r{display:grid;grid-template-columns:54px 1fr 26px;gap:8px;align-items:center;margin:6px 0}
+#snd-panel input[type=range]{width:100%;height:28px;margin:0;accent-color:#ffb53a;touch-action:manipulation}
+#snd-panel b{text-align:right;font-variant-numeric:tabular-nums}
+#snd-panel button{width:100%;margin-top:6px;padding:8px;border:0;border-radius:10px;background:rgba(255,255,255,.14);color:#fff;font:700 13px system-ui,sans-serif}`;
     document.head.appendChild(css);
+
     const b = document.createElement('button');
     b.id = 'snd-btn';
     b.setAttribute('aria-label', 'Sound');
-    b.addEventListener('pointerdown', (e) => e.stopPropagation());
-    b.addEventListener('touchstart', (e) => e.stopPropagation());
-    b.addEventListener('click', () => this.toggleMute());
-    document.body.appendChild(b);
+    const p = document.createElement('div');
+    p.id = 'snd-panel';
+    p.innerHTML = `
+      <div class="r"><span>Music</span><input type="range" min="0" max="100" step="1" data-k="music"><b data-v="music"></b></div>
+      <div class="r"><span>Effects</span><input type="range" min="0" max="100" step="1" data-k="fx"><b data-v="fx"></b></div>
+      <button data-mute>Mute all</button>`;
+    const stop = (e) => e.stopPropagation();
+    for (const ev of ['pointerdown', 'touchstart', 'mousedown']) { b.addEventListener(ev, stop); p.addEventListener(ev, stop); }
+    b.addEventListener('click', () => p.classList.toggle('open'));
+    p.addEventListener('input', (e) => {
+      const k = e.target.dataset && e.target.dataset.k;
+      if (k) this.setVolume(k, Number(e.target.value));
+    });
+    p.querySelector('[data-mute]').addEventListener('click', () => this.toggleMute());
+    // bahar tap karne par panel band
+    document.addEventListener('pointerdown', (e) => {
+      if (p.classList.contains('open') && !p.contains(e.target) && e.target !== b) p.classList.remove('open');
+    }, true);
+    document.body.append(b, p);
     this.btn = b;
+    this.panel = p;
     this._paint();
   }
 
-  _paint() { this.btn.textContent = this.muted ? '\u{1F507}' : '\u{1F50A}'; }
+  _paint() {
+    const silent = this.muted || (this.vol.music === 0 && this.vol.fx === 0);
+    this.btn.textContent = silent ? '\u{1F507}' : '\u{1F50A}';
+    for (const k of ['music', 'fx']) {
+      this.panel.querySelector(`[data-k="${k}"]`).value = String(this.vol[k]);
+      this.panel.querySelector(`[data-v="${k}"]`).textContent = String(this.vol[k]);
+    }
+    this.panel.querySelector('[data-mute]').textContent = this.muted ? 'Unmute' : 'Mute all';
+  }
+
+  // k = 'music' | 'fx', v = 0-100
+  setVolume(k, v) {
+    if (k !== 'music' && k !== 'fx') return;
+    this.vol[k] = Math.round(clamp(v, 0, 100));
+    try { localStorage.setItem(`ch_vol_${k}`, String(this.vol[k])); } catch (e) { /* ignore */ }
+    this._applyVol();
+    if (k === 'music' && this.bgm) { // 0 par gaana sach mein ruk jaata hai (battery/data bachti hai)
+      if (this.vol.music === 0) this.bgm.pause(); else this.startMusic();
+    }
+    this._paint();
+  }
+
+  _applyVol() {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    const g = (v) => Math.pow(v / 100, 1.6); // kaan ke hisaab se
+    this.musicBus.gain.setTargetAtTime(g(this.vol.music), t, 0.03);
+    this.fxBus.gain.setTargetAtTime(g(this.vol.fx), t, 0.03);
+  }
 
   toggleMute() {
     this.muted = !this.muted;
     try { localStorage.setItem('ch_mute', this.muted ? '1' : '0'); } catch (e) { /* ignore */ }
     if (this.master) this.master.gain.setTargetAtTime(this.muted ? 0 : 0.9, this.ctx.currentTime, 0.02);
+    if (this.muted) { if (this.bgm) this.bgm.pause(); } else this.startMusic();
     this._paint();
+  }
+
+  /* ---------------- gaana ---------------- */
+  startMusic() {
+    if (this.bgmFailed || !this.ctx || this.muted || this.vol.music === 0) return;
+    if (!this.bgm) {
+      const a = new Audio(BGM_URL);
+      a.loop = true;
+      a.preload = 'auto';
+      a.addEventListener('error', () => {
+        this.bgmFailed = true;
+        console.warn('Gaana load nahi hua. File yahan honi chahiye:', BGM_URL);
+      });
+      try {
+        this.ctx.createMediaElementSource(a).connect(this.musicBus); // volume slider yahin se kaam karta hai
+      } catch (e) { this.bgmFailed = true; return; }
+      this.bgm = a;
+    }
+    if (this.bgm.paused) {
+      const p = this.bgm.play();
+      if (p && p.catch) p.catch(() => { /* agle tap par dobara koshish */ });
+    }
+  }
+
+  // dhamake ke waqt gaana thodi der dheema, taaki cracker saaf sunai de
+  _duck(level, dur) {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime, p = this.duck.gain;
+    p.cancelScheduledValues(t);
+    p.setTargetAtTime(level, t, 0.015);
+    p.setTargetAtTime(1, t + dur, 0.25);
   }
 
   _init() {
@@ -76,6 +197,12 @@ export class Sfx {
     this.master.gain.value = this.muted ? 0 : 0.9;
     this.master.connect(comp);
     comp.connect(c.destination);
+    this.fxBus = c.createGain();     // sab cracker ki awaazein
+    this.fxBus.connect(this.master);
+    this.duck = c.createGain();      // dhamake par gaana dabane ke liye
+    this.duck.connect(this.master);
+    this.musicBus = c.createGain();  // gaana (volume slider)
+    this.musicBus.connect(this.duck);
 
     // safed shor (2 sec)
     this.noise = c.createBuffer(1, sr * 2, sr);
@@ -105,12 +232,13 @@ export class Sfx {
     const vo = c.createGain();
     vo.gain.value = 0.5;
     this.verb.connect(vo);
-    vo.connect(this.master);
+    vo.connect(this.fxBus);
 
     // boom ko "bhaari" banane ke liye soft clip
     const N = 1024;
     this.clipCurve = new Float32Array(N);
     for (let i = 0; i < N; i++) this.clipCurve[i] = Math.tanh(((i * 2) / N - 1) * 2.2);
+    this._applyVol();
   }
 
   setListener(x, y, z, rx, rz) {
@@ -143,7 +271,7 @@ export class Sfx {
       g.connect(p);
       last = p;
     }
-    last.connect(this.master);
+    last.connect(this.fxBus);
     return { g, p };
   }
 
@@ -376,6 +504,7 @@ export class Sfx {
     const c = this.ctx, t = c.currentTime;
     const { vol, pan } = this._sp(pos, 1.7);
     const ch = this._chain(vol, pan);
+    this._duck(0.6, 0.5);
 
     const n = this._noise(false);
     const bp = this._filter('bandpass', 2600, 0.4);
@@ -443,6 +572,7 @@ export class Sfx {
     const c = this.ctx, t = c.currentTime;
     const { vol, pan } = this._sp(pos, 2.4);
     const ch = this._chain(vol, pan);
+    this._duck(0.3, 0.9);
     const send = c.createGain();
     send.gain.value = 0.45;
     ch.g.connect(send); send.connect(this.verb);

@@ -1,9 +1,11 @@
 import './menu.css';
 import './menuAddon.css';
+import { getSfx } from './sfx.js';
 import { setupLandscape } from './landscape.js';
 
 // title/lobby bhi landscape mein: portrait mein "phone ghumao" screen, pehle tap par fullscreen
 setupLandscape({ isTouch: 'ontouchstart' in window || navigator.maxTouchPoints > 0 });
+getSfx(); // gaana + awaaz: pehle tap par shuru, menu se game tak ek hi chalta hai
 
 
 
