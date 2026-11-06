@@ -27,7 +27,7 @@ export class Missile extends Container {
     super();
     this.position.set(x, y);
     this.vy = -260;
-    this.damage = 6;   // TODO: tune later
+    this.damage = 12;   // TODO: tune later
     this.aoe = 100;
     this.radius = 11;
     this.isMissile = true;

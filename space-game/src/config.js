@@ -1,11 +1,28 @@
 export const CONFIG = {
   shipSpeed: 460,
-  playerhp: 100,
-  metersPerSecond: 10,   // base speed (x1) = 10 m/s
-  shopStart: 1000,       // 1st station at 1000 m
-  shopGapFirst: 1100,    // 2nd station is 1100 m after the 1st (= 2100 m)
-  shopGapStep: 100,      // every next gap is 100 m longer (1200, 1300, ...)
-  shopOrder: ['fuel', 'parts'], // stations alternate in this order
+  playerHp: 20,            // enemy bullets take HP (2 / 4 / 6 / 8 per hit); 0 HP = game over
+  hurtCooldown: 0.5,       // ship is safe for this long after a hit
+  metersPerSecond: 10,     // base speed (x1) = 10 m/s
+
+  // Stations: each kind has its own schedule (distance in metres)
+  shops: {
+    fuel: { start: 1000, gap: 1100 },   // 1000, 2100, 3200, ...
+    parts: { start: 1500, gap: 1200 },  // 1500, 2700, 3900, ...
+  },
+  shopGapStep: 0,          // make every next gap this much longer (0 = same gap always)
+
+  // Boosters floating in the air: 500, 800, 1200, 1500, 1900, 2200, ...
+  boosterFirst: 500,
+  boosterGaps: [300, 400], // gaps alternate: +300, +400, +300, +400 ...
+  boosterOrder: ['magnet', 'ghost', 'rainbow'],
+  coinMagnetRadius: 300,
+
+  // Health booster: 500, 800, 1100, 1400 ... (every 300 m), gives +20 HP
+  healthFirst: 500,
+  healthGap: 300,
+  healthAmount: 20,
+  hpCap: 40,               // HP can go above the starting 20, up to this
+
   stationVy: 170,
   coinVy: 210,
   fireInterval: 0.12,
@@ -56,4 +73,13 @@ export const EXHAUSTS = {
     id: 'fire', name: 'INTENSE FIRE', cost: 100,
     preview: [0xfffbe0, 0xffc21a, 0xff5a00], flame: [0xff5a00, 0xffc21a, 0xfffbe0], glow: 0xffa030,
   },
+};
+
+
+// Boosters (pick-ups)
+export const BOOSTERS = {
+  magnet: { id: 'magnet', name: 'COIN MAGNET', duration: 60, color: 0xff5a5a },
+  ghost: { id: 'ghost', name: 'INVISIBILITY', duration: 90, color: 0x9fe8ff },
+  rainbow: { id: 'rainbow', name: 'COLORFUL COINS', duration: 60, color: 0xff66dd },
+  health: { id: 'health', name: 'HEALTH', color: 0xff5a8a }, // instant: +20 HP
 };

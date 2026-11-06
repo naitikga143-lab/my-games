@@ -2,7 +2,12 @@ import { Container, Graphics } from 'pixi.js';
 import { makeText, coinIcon } from './widgets.js';
 
 const BAR_W = 170;
-const HP_W = 150;
+const HP_W = 160;
+const BOOST_LINES = [
+  ['magnet', 'COIN MAGNET', 0xff8a8a],
+  ['ghost', 'INVISIBLE', 0x9fe8ff],
+  ['rainbow', 'COLORFUL COINS x2', 0xff9de6],
+];
 
 export class Hud extends Container {
   constructor() {
@@ -10,6 +15,7 @@ export class Hud extends Container {
     this.w = 800;
     this.h = 600;
     this.hurtA = 0;
+    this.toastT = 0;
     this.flash = new Graphics(); // soft red flash when the ship is hit
     this.flash.alpha = 0;
     this.coinIc = coinIcon(11);
@@ -18,17 +24,21 @@ export class Hud extends Container {
     this.distText.anchor.set(0.5, 0);
     this.nextText = makeText('', 14, 0x9fd8ff);
     this.nextText.anchor.set(0.5, 0);
+    this.toastText = makeText('', 20);
+    this.toastText.anchor.set(0.5, 0);
+    this.toastText.alpha = 0;
     this.fuelLabel = makeText('NO FUEL', 13);
     this.fuelLabel.anchor.set(1, 0);
     this.missLabel = makeText('MISSILE', 11, 0xffb08a);
     this.missLabel.anchor.set(1, 0);
-    this.hpText = makeText('100', 12);
+    this.hpText = makeText('HP', 13);
     this.seekText = makeText('', 13, 0xff8a8a);
     this.shieldText = makeText('', 13, 0x7fe8ff);
+    this.boostTexts = BOOST_LINES.map(([, , col]) => makeText('', 13, col));
     this.bars = new Graphics();
     this.addChild(
-      this.flash, this.seekText, this.shieldText, this.bars, this.coinIc, this.coinText,
-      this.distText, this.nextText, this.fuelLabel, this.missLabel, this.hpText,
+      this.flash, this.seekText, this.shieldText, ...this.boostTexts, this.bars, this.coinIc, this.coinText,
+      this.distText, this.nextText, this.toastText, this.fuelLabel, this.missLabel, this.hpText,
     );
     this.layout(800, 600);
   }
@@ -42,25 +52,39 @@ export class Hud extends Container {
     this.coinText.position.set(m + 30, m);
     this.distText.position.set(w / 2, m - 2);
     this.nextText.position.set(w / 2, m + 34);
+    this.toastText.position.set(w / 2, m + 62);
     this.fuelLabel.position.set(w - m, m);
     this.missLabel.position.set(w - m, m + 40);
     this.hpText.position.set(m + HP_W + 8, 31);
     this.seekText.position.set(m, m + 52);
     this.shieldText.position.set(m, m + 70);
+    this.boostTexts.forEach((t, i) => t.position.set(m, m + 88 + i * 18));
   }
 
   hurt() { this.hurtA = 1; }
 
+  toast(text, color = 0xffffff) {
+    this.toastText.text = text;
+    this.toastText.style.fill = color;
+    this.toastT = 2.4;
+  }
+
   update(state, info) {
     this.hurtA = Math.max(0, this.hurtA - 0.05);
     this.flash.alpha = this.hurtA * 0.16;
+    this.toastT = Math.max(0, this.toastT - (info.dt || 0.016));
+    this.toastText.alpha = Math.min(1, this.toastT * 1.5);
 
     this.coinText.text = String(state.coins);
     this.distText.text = Math.floor(state.distance) + ' m';
     this.nextText.text = info.stationText;
-    this.hpText.text = String(Math.ceil(state.hp));
+    this.hpText.text = `HP ${Math.ceil(state.hp)}/${state.maxHp}`;
     this.seekText.text = state.seekers > 0 ? `TARGETING MISSILES  x${state.seekers}` : '';
     this.shieldText.text = state.shield > 0 ? `ASTEROID PROTECTOR  ${state.shield} LEFT` : '';
+    BOOST_LINES.forEach(([id, label], i) => {
+      const t = state.boost[id];
+      this.boostTexts[i].text = t > 0 ? `${label}  ${Math.ceil(t)}s` : '';
+    });
 
     const fuel = state.fuel;
     this.fuelLabel.text = fuel ? `${fuel.name}  ${Math.ceil(state.fuelLeft)}s` : 'NO FUEL  (base speed)';
@@ -70,8 +94,8 @@ export class Hud extends Container {
 
     // HP bar (top-left)
     const hf = Math.max(0, Math.min(1, state.hp / state.maxHp));
-    g.roundRect(16, 32, HP_W, 12, 6).fill({ color: 0x000000, alpha: 0.5 });
-    if (hf * HP_W > 3) g.roundRect(16, 32, HP_W * hf, 12, 6).fill(hf > 0.5 ? 0x4cff7a : hf > 0.25 ? 0xffc83d : 0xff4d4d);
+    g.roundRect(16, 32, HP_W, 14, 7).fill({ color: 0x000000, alpha: 0.5 });
+    if (hf * HP_W > 3) g.roundRect(16, 32, HP_W * hf, 14, 7).fill(hf > 0.5 ? 0x4cff7a : hf > 0.25 ? 0xffc83d : 0xff4d4d);
 
     // fuel + missile bars (top-right)
     const x = this.w - 16 - BAR_W;

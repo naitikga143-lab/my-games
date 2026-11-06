@@ -4,29 +4,29 @@ import { EnemyBullet } from './EnemyBullet.js';
 
 const mir = p => p.map((v, i) => (i % 2 === 0 ? -v : v));
 const same = p => p;
-const rnd = (a, b) => a + Math.random() * (b - a);
+const DOWN = Math.PI / 2;
 
-// How each ship attacks. Bigger ship = bigger shots = more damage.
-// (player has 100 HP; dmg = HP lost per bullet that hits)
+// Enemies run sideways and fire CONTINUOUSLY straight down (not aimed at you),
+// so you dodge between the bullets. dmg = HP the player loses per bullet.
 const FIRE = {
-  scout: { // 1 small fast shot
-    interval: [1.4, 2.0],
-    volley: a => [{ a, ox: 0, dmg: 6, speed: 310, size: 6, color: 0xff7a3d }],
+  scout: { // 1 stream
+    interval: 0.45,
+    volley: () => [{ a: DOWN, ox: 0, dmg: 1, speed: 300, size: 6, color: 0xff7a3d }],
   },
-  fighter: { // 2 shots from the twin cannons
-    interval: [1.7, 2.3],
-    volley: a => [-30, 30].map(ox => ({ a, ox, dmg: 10, speed: 330, size: 7, color: 0xc084fc })),
+  fighter: { // 2 streams (twin cannons)
+    interval: 0.6,
+    volley: () => [-30, 30].map(ox => ({ a: DOWN, ox, dmg: 2, speed: 320, size: 7, color: 0xc084fc })),
   },
-  gunship: { // 3-shot spread
-    interval: [2.1, 2.8],
-    volley: a => [-0.22, 0, 0.22].map(d => ({ a: a + d, ox: 0, dmg: 14, speed: 290, size: 9, color: 0x7dffb0 })),
+  gunship: { // 3 streams, slightly fanned out
+    interval: 0.75,
+    volley: () => [-0.2, 0, 0.2].map(d => ({ a: DOWN + d, ox: 0, dmg: 3, speed: 290, size: 9, color: 0x7dffb0 })),
   },
-  dreadnought: { // huge plasma orb + 2 side shots
-    interval: [2.6, 3.3],
-    volley: a => [
-      { a, ox: 0, dmg: 30, speed: 230, size: 16, color: 0xff3b3b },
-      { a: a - 0.35, ox: -40, dmg: 10, speed: 280, size: 8, color: 0xff8a5a },
-      { a: a + 0.35, ox: 40, dmg: 10, speed: 280, size: 8, color: 0xff8a5a },
+  dreadnought: { // big centre orb + 2 side streams
+    interval: 0.9,
+    volley: () => [
+      { a: DOWN, ox: 0, dmg: 4, speed: 250, size: 14, color: 0xff3b3b },
+      { a: DOWN - 0.3, ox: -45, dmg: 4, speed: 270, size: 9, color: 0xff8a5a },
+      { a: DOWN + 0.3, ox: 45, dmg: 4, speed: 270, size: 9, color: 0xff8a5a },
     ],
   },
 };
@@ -34,7 +34,7 @@ const FIRE = {
 // All art is drawn nose-UP, then flipped so the nose faces the player.
 const TYPES = {
   scout: {
-    hp: 3, radius: 24, coins: 5, speed: 190,
+    hp: 12, radius: 24, coins: 5, speed: 240,
     draw() {
       const c = new Container();
       const eng = glowSprite(0xff7a3d, 54, 0.9);
@@ -48,7 +48,7 @@ const TYPES = {
     },
   },
   fighter: {
-    hp: 6, radius: 34, coins: 10, speed: 130,
+    hp: 30, radius: 34, coins: 10, speed: 200,
     draw() {
       const c = new Container();
       const g = new Graphics();
@@ -65,7 +65,7 @@ const TYPES = {
     },
   },
   gunship: {
-    hp: 12, radius: 48, coins: 20, speed: 80,
+    hp: 60, radius: 48, coins: 20, speed: 140,
     draw() {
       const c = new Container();
       const g = new Graphics();
@@ -86,7 +86,7 @@ const TYPES = {
     },
   },
   dreadnought: {
-    hp: 25, radius: 70, coins: 50, speed: 45,
+    hp: 120, radius: 70, coins: 50, speed: 90,
     draw() {
       const c = new Container();
       const g = new Graphics();
@@ -125,17 +125,16 @@ export class Enemy extends Container {
     this.speed = T.speed;
     this.hit = 0;
     this.t = Math.random() * 10;
-    this.life = 14 + Math.random() * 6;
+    this.life = 16 + Math.random() * 6;
     this.dir = Math.random() < 0.5 ? -1 : 1;
-    this.hoverY = 90 + Math.random() * screen.height * 0.18; // stays in the TOP area
+    this.hoverY = 90 + Math.random() * screen.height * 0.16; // stays in the TOP area
     this.gone = false;
     this.fire = FIRE[type];
-    this.fireT = 1.4 + Math.random(); // first shot comes a bit after spawning
+    this.fireT = 1 + Math.random() * 0.5; // first shot a moment after spawning
 
     this.art = T.draw();
     this.art.rotation = Math.PI;
     this.bar = new Graphics();
-    this.bar.visible = false;
     this.marked = 0; // set by targeting missiles
     this.reticle = new Graphics();
     this.reticle.visible = false;
@@ -146,38 +145,37 @@ export class Enemy extends Container {
     }
     this.reticle.stroke({ width: 3, color: 0xff4d4d });
     this.addChild(this.art, this.bar, this.reticle);
+    this.drawBar();
 
     this.x = this.radius + Math.random() * (screen.width - this.radius * 2);
     this.y = -this.radius - 40;
   }
 
-  shoot(player, world, effects) {
+  drawBar() {
+    const w = this.radius * 1.6;
+    const y = -this.radius - 18;
+    this.bar.clear()
+      .rect(-w / 2, y, w, 5).fill({ color: 0x000000, alpha: 0.55 })
+      .rect(-w / 2, y, w * Math.max(0, this.hp / this.maxHp), 5).fill(0xff4d4d);
+  }
+
+  shoot(world) {
     const f = this.fire;
-    this.fireT = rnd(f.interval[0], f.interval[1]);
+    this.fireT = f.interval;
     const mx = this.x, my = this.y + this.radius * 0.55;
-    const aim = Math.atan2(player.y - my, player.x - mx);
-    const shots = f.volley(aim);
-    for (const s of shots) {
+    for (const s of f.volley()) {
       world.add(world.enemyShots, new EnemyBullet(mx + s.ox, my, s.a, s.speed, s.dmg, s.size, s.color));
-    }
-    if (effects) {
-      effects.burst(mx, my, { count: 5, speed: 90, size: 20, life: 0.25, c1: 0xffffff, c2: shots[0].color });
     }
   }
 
   hurt(d) {
     this.hp -= d;
     this.hit = 0.1;
-    this.bar.visible = true;
-    const w = this.radius * 1.6;
-    const y = -this.radius - 18;
-    this.bar.clear()
-      .rect(-w / 2, y, w, 5).fill({ color: 0x000000, alpha: 0.55 })
-      .rect(-w / 2, y, w * Math.max(0, this.hp / this.maxHp), 5).fill(0xff4d4d);
+    this.drawBar();
     return this.hp <= 0;
   }
 
-  update(dt, player, screen, world, effects) {
+  update(dt, player, screen, world) {
     this.t += dt;
     this.life -= dt;
     if (this.life <= 0) { // time is up: fly away upwards
@@ -187,26 +185,23 @@ export class Enemy extends Container {
       if (this.y < this.hoverY) this.y += 130 * dt;
       else this.y += (this.hoverY - this.y) * Math.min(1, dt * 2);
 
+      // lateral run: sweeps left <-> right across the screen
       this.x += this.dir * this.speed * dt;
       const m = this.radius + 10;
-      if (this.x < m) this.dir = 1;
-      if (this.x > screen.width - m) this.dir = -1;
+      if (this.x < m) { this.x = m; this.dir = 1; }
+      if (this.x > screen.width - m) { this.x = screen.width - m; this.dir = -1; }
 
-      // keep away from the player: slide sideways + retreat upwards
-      const dx = this.x - player.x, dy = this.y - player.y;
-      const d = Math.hypot(dx, dy);
-      const safe = this.radius + 240;
-      if (d < safe) {
-        const push = (safe - d) / safe;
-        this.x += (dx >= 0 ? 1 : -1) * push * 440 * dt;
-        this.y -= push * 120 * dt;
-        this.x = Math.max(m, Math.min(screen.width - m, this.x));
-        this.y = Math.max(this.radius * 0.4, this.y);
+      // back off upwards if the player flies right up to it
+      const d = Math.hypot(this.x - player.x, this.y - player.y);
+      const near = this.radius + 130;
+      if (d < near) this.y -= (near - d) * 3 * dt;
+      this.y = Math.max(this.radius * 0.4, this.y);
+
+      // continuous fire straight down (not aimed): dodge between the bullets
+      if (world && player.alive && this.y > 30) {
+        this.fireT -= dt;
+        if (this.fireT <= 0) this.shoot(world);
       }
-    }
-    if (world && this.life > 0 && player.alive && this.y > 30) { // attack!
-      this.fireT -= dt;
-      if (this.fireT <= 0) this.shoot(player, world, effects);
     }
     this.art.y = Math.sin(this.t * 2) * 5;
     if (this.marked > 0) {

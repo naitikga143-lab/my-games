@@ -160,7 +160,7 @@ function connect() {
   ws.onclose = () => {
     if (S.ws !== ws || S.over) return;
     S.welcomed = false;
-    if (S.seeking) { stopSeek(); show('home'); toast('Connection toot gaya, dobara try karo'); }
+    if (S.seeking) { stopSeek(); toast('Opponent mil gaya!'); }
     else if (S.entered) toast('Connection lost, reconnecting...');
     setTimeout(connect, 1500);
   };
@@ -285,8 +285,8 @@ function setSeekUi(state) {
   $('radar').classList.toggle('fail', fail);
   $('seekT').textContent = fail ? 'Match not found' : 'Searching for a match...';
   $('seekS').textContent = fail
-    ? 'Abhi koi lobby match nahi maang raha. Home pe wapas ja rahe hain...'
-    : 'Koi lobby match maange to tum seedha wahan pahunch jaoge';
+    ? 'Abhi koi opponent nahi mila. Home pe wapas ja rahe hain...'
+    : 'Koi aur bhi Enter Match dabaye, ya koi lobby opponent maange, to turant match ban jayega';
   $('btnSeekCancel').hidden = fail;
   if (fail) $('seekN').textContent = '\u2715';
 }

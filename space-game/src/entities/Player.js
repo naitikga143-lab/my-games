@@ -25,7 +25,11 @@ export class Player extends Container {
     this.shield.addChild(this.shieldGlow, this.shieldRing);
     this.shield.visible = false;
 
-    this.addChild(this.model, this.shield);
+    // coin magnet rings + invisibility (set by Game every frame)
+    this.magnet = false;
+    this.ghost = false;
+    this.magnetFx = new Graphics();
+    this.addChild(this.magnetFx, this.model, this.shield);
   }
 
   reset(screen) {
@@ -41,6 +45,16 @@ export class Player extends Container {
   }
 
   shieldHit() { this.flash = 1; }
+
+  drawMagnet() { // rings that shrink towards the ship = "pulling coins in"
+    const t = performance.now() / 1000;
+    const g = this.magnetFx;
+    g.clear();
+    for (let i = 0; i < 2; i++) {
+      const ph = (t * 0.9 + i * 0.5) % 1;
+      g.circle(0, 0, 120 - ph * 85).stroke({ width: 2, color: 0xff6a6a, alpha: ph * 0.45 });
+    }
+  }
 
   drawShield(dt) {
     this.flash = Math.max(0, this.flash - dt * 3);
@@ -86,9 +100,14 @@ export class Player extends Container {
     this.shield.visible = this.shieldCharges > 0;
     if (this.shield.visible) this.drawShield(dt);
 
+    this.magnetFx.visible = this.magnet;
+    if (this.magnet) this.drawMagnet();
+
     if (this.hurtCd > 0) this.hurtCd -= dt;
     if (this.invuln > 0) this.invuln -= dt;
     const blink = this.invuln > 0 || this.hurtCd > 0;
-    this.model.alpha = blink ? (Math.sin(performance.now() / 60) > 0 ? 0.45 : 1) : 1;
+    let alpha = this.ghost ? 0.35 + Math.sin(performance.now() / 300) * 0.07 : 1; // invisibility = see-through
+    if (blink) alpha *= Math.sin(performance.now() / 60) > 0 ? 0.5 : 1;
+    this.model.alpha = alpha;
   }
 }

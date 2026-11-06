@@ -1,4 +1,5 @@
 import { Coin } from '../entities/Coin.js';
+import { BOOSTERS } from '../config.js';
 
 const hit = (a, b, pad = 0) => {
   const dx = a.x - b.x, dy = a.y - b.y, r = a.radius + b.radius + pad;
@@ -68,9 +69,20 @@ export function resolveCollisions(g) {
   for (let i = world.coins.length - 1; i >= 0; i--) {
     const c = world.coins[i];
     if (hit(player, c, 12) && player.alive) {
-      state.coins += c.value;
+      state.coins += c.value * (state.boost.rainbow > 0 ? 2 : 1); // colorful coins = double
       effects.sparkle(c.x, c.y);
       world.remove(world.coins, c);
+    }
+  }
+
+  // Boosters
+  for (let i = world.boosters.length - 1; i >= 0; i--) {
+    const b = world.boosters[i];
+    if (player.alive && hit(player, b, 10)) {
+      effects.ring(b.x, b.y, BOOSTERS[b.kind].color, 80);
+      effects.sparkle(b.x, b.y);
+      g.collectBooster(b.kind);
+      world.remove(world.boosters, b);
     }
   }
 
@@ -91,7 +103,7 @@ export function resolveCollisions(g) {
   // Ship vs hazards: nothing can hurt the ship inside a safe zone
   if (g.inZone || !player.alive || player.invuln > 0) return;
   for (const a of [...world.asteroids]) {
-    if (a.fading || !hit(player, a)) continue;
+    if (a.fading || state.boost.ghost > 0 || !hit(player, a)) continue; // invisible: meteors pass through
     if (state.fuel && state.fuel.smash) { // intense energy smashes meteors
       damageAsteroid(g, a, 999);
     } else if (state.shield > 0) {        // asteroid protector absorbs the hit

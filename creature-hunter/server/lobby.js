@@ -149,16 +149,30 @@ export class Lobby {
     this._pushRoom(room);
   }
 
-  // "Enter Match": kisi lobby ne match manga hai to seedha wahan, warna 60s intezar
+  // "Enter Match":
+  //  1) koi lobby opponent maang rahi ho to seedha wahan
+  //  2) koi aur bhi "Enter Match" par ruka ho to dono ka auto lobby (pehle wala Red, naya Blue)
+  //  3) warna 60s intezar
   seek(p) {
     if (p.room && p.room.match && !p.room.match.ended) return;
     if (p.room) this.leave(p);
     this._unseek(p);
+
     const waitingCode = this.queue.find((c) => {
       const r = this.rooms.get(c);
       return r && !r.players.blue && !r.match;
     });
     if (waitingCode) { this.join(p, waitingCode); return; }
+
+    const now = Date.now();
+    const mate = this.seekers.find((x) => x !== p && x.ws && x.ws.readyState === 1 && x.seekUntil > now);
+    if (mate) {
+      this._unseek(mate);
+      this.create(mate);             // pehle intezar karne wala Red (host)
+      this.join(p, mate.room.code);  // naya aane wala Blue => countdown apne aap shuru
+      return;
+    }
+
     p.seekUntil = Date.now() + SEEK_MS;
     this.seekers.push(p);
     send(p, { t: 'seeking', ms: SEEK_MS });

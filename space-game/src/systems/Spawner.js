@@ -40,6 +40,7 @@ export class Spawner {
     this.satT = 5;
     this.coinT = 2;
     this.enemyT = 10;
+    this.hadEnemy = false;
   }
 
   // wdt = world time, so spawn density stays the same per metre flown
@@ -50,7 +51,6 @@ export class Spawner {
     this.astT -= wdt;
     this.satT -= wdt;
     this.coinT -= wdt;
-    this.enemyT -= wdt;
 
     if (this.astT <= 0) {
       this.astT = 1.5 - diff * 0.9 + Math.random() * 0.8;
@@ -72,9 +72,16 @@ export class Spawner {
         this.world.add(this.world.coins, c);
       }
     }
-    if (this.enemyT <= 0 && distance > 120 && this.world.enemies.length === 0) {
-      this.enemyT = 14 + Math.random() * 10 - diff * 6;
-      this.world.add(this.world.enemies, new Enemy(pickEnemy(distance), this.screen));
+    // enemies come one at a time, with a short rest in between
+    if (this.world.enemies.length > 0) {
+      this.hadEnemy = true;
+    } else {
+      if (this.hadEnemy) { this.hadEnemy = false; this.enemyT = 8 + Math.random() * 6 - diff * 3; }
+      this.enemyT -= wdt;
+      if (this.enemyT <= 0 && distance > 120) {
+        this.world.add(this.world.enemies, new Enemy(pickEnemy(distance), this.screen));
+        this.hadEnemy = true;
+      }
     }
   }
 }

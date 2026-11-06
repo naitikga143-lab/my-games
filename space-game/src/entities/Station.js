@@ -20,7 +20,7 @@ export class Station extends Container {
     this.alt = K.alt;
     this.s = Math.max(0.65, Math.min(1, screen.width / 900));
     this.scale.set(this.s);
-    this.zoneR = Math.max(220, Math.min(380, Math.min(screen.width, screen.height) * 0.55));
+    this.zoneR = Math.max(130, Math.min(200, Math.min(screen.width, screen.height) * 0.26)); // small: easy to skip
     this.passed = false;
     this.dockCd = 0;
     this.t = 0;

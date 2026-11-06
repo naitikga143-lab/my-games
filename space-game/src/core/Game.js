@@ -1,9 +1,10 @@
 import { Application, Container } from 'pixi.js';
-import { CONFIG, EXHAUSTS } from '../config.js';
+import { CONFIG, EXHAUSTS, BOOSTERS } from '../config.js';
 import { Input } from './Input.js';
 import { State } from './State.js';
 import { Player } from '../entities/Player.js';
 import { Station } from '../entities/Station.js';
+import { Booster } from '../entities/Booster.js';
 import { EarthMap } from '../maps/EarthMap.js';
 import { World } from '../systems/World.js';
 import { Spawner } from '../systems/Spawner.js';
@@ -98,10 +99,13 @@ export class Game {
     if (target === 0 && this.speed < 0.02) this.speed = 0;
     const wdt = dt * this.speed;
 
-    if (!this.inZone) state.update(dt);           // fuel burns only while flying
+    if (!this.inZone) state.update(dt);           // fuel + booster timers run only while flying
     state.distance += CONFIG.metersPerSecond * wdt; // distance is never reduced by fuel type
 
     player.shieldCharges = state.shield;
+    player.magnet = state.boost.magnet > 0;
+    player.ghost = state.boost.ghost > 0;
+    world.rainbow = state.boost.rainbow > 0;
     player.update(dt, input, screen, state.fuel ? state.fuel.agility : 1);
     this.weapons.update(dt, input, player, state);
     this.applyExhaustStyle();
@@ -109,16 +113,21 @@ export class Game {
     input.setMissileLabel(state.seekers > 0 ? `SEEK x${state.seekers}` : 'MISSILE');
     map.update(wdt, player, this.speed, dt);
     this.spawner.update(wdt, state.distance, !!this.station || this.inZone);
+    if (player.magnet) world.attractCoins(player.x, player.y, dt, CONFIG.coinMagnetRadius);
     world.update(wdt, dt, player, screen, this.effects);
     this.updateStation(wdt, dt);
+    this.updateBoosters();
     if (this.mode !== 'play') return;
     resolveCollisions(this);
 
     let stationText;
     if (this.inZone) stationText = 'SAFE ZONE - FLY INTO THE GATE';
     else if (this.station && !this.station.passed) stationText = 'STATION AHEAD';
-    else stationText = `NEXT STATION  ${Math.max(0, Math.ceil(state.nextShopDistance - state.distance))} m`;
-    this.hud.update(state, { missileFrac: this.weapons.missileFrac, stationText });
+    else {
+      const n = state.nextStation();
+      stationText = `NEXT ${n.kind === 'fuel' ? 'FUEL DEPOT' : 'PARTS BAY'}  ${Math.max(0, Math.ceil(n.dist - state.distance))} m`;
+    }
+    this.hud.update(state, { missileFrac: this.weapons.missileFrac, stationText, dt });
   }
 
   applyExhaustStyle() {
@@ -128,14 +137,47 @@ export class Game {
     this.player.model.setFlame(d.flame, d.glow);
   }
 
+  // ---------- boosters (pick-ups in the air) ----------
+  updateBoosters() {
+    const { state } = this;
+    if (this.station || this.inZone) return;
+    const w = this.app.screen.width;
+    let slot = 0; // if two are due at once, they spawn one above the other
+    const spawn = kind => {
+      const b = new Booster(kind);
+      b.position.set(80 + Math.random() * (w - 160), -60 - slot * 220);
+      this.world.add(this.world.boosters, b);
+      slot++;
+    };
+    if (state.distance >= state.boosterNext) { // magnet 500, invisibility 800, colorful coins 1200, ...
+      spawn(state.nextBoosterKind());
+      state.passBooster();
+    }
+    if (state.distance >= state.healthNext) {  // health 500, 800, 1100, ...
+      spawn('health');
+      state.passHealth();
+    }
+  }
+
+  collectBooster(kind) {
+    const B = BOOSTERS[kind];
+    if (kind === 'health') {
+      this.state.heal(CONFIG.healthAmount);
+      this.hud.toast(`HEALTH +${CONFIG.healthAmount}   HP ${Math.ceil(this.state.hp)}`, B.color);
+    } else {
+      this.state.activate(kind);
+      this.hud.toast(`${B.name}  ${B.duration}s`, B.color);
+    }
+  }
+
   // ---------- stations / safe zone ----------
   updateStation(wdt, dt) {
     const { state, player } = this;
     const screen = this.app.screen;
 
-    if (!this.station && state.distance >= state.nextShopDistance) {
-      const kind = CONFIG.shopOrder[state.shopIndex % CONFIG.shopOrder.length];
-      state.passStation(); // schedules the next one (1000 -> 2100 -> 3300 ...)
+    if (!this.station && !this.inZone && state.distance >= state.nextStation().dist) {
+      const kind = state.nextStation().kind; // fuel: 1000, 2100, ...  parts: 1500, 2700, ...
+      state.passStation(kind);
       const st = new Station(kind, screen);
       st.position.set(screen.width / 2 + (Math.random() - 0.5) * screen.width * 0.2, -260 * st.s);
       this.station = st;
@@ -204,7 +246,7 @@ export class Game {
   hurtPlayer(dmg) {
     const s = this.state;
     s.hp = Math.max(0, s.hp - dmg);
-    this.player.hurtCd = 0.3;
+    this.player.hurtCd = CONFIG.hurtCooldown;
     this.effects.ring(this.player.x, this.player.y, 0xff5a5a, 60);
     this.shake(4 + dmg * 0.25);
     this.hud.hurt();

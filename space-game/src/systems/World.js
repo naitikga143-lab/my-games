@@ -2,7 +2,7 @@ import { Container } from 'pixi.js';
 
 export class World {
   constructor() {
-    this.objects = new Container(); // hazards + coins
+    this.objects = new Container(); // hazards + coins + boosters
     this.shots = new Container();   // player + enemy bullets
     this.asteroids = [];
     this.satellites = [];
@@ -10,6 +10,8 @@ export class World {
     this.coins = [];
     this.bullets = [];     // player's bullets / missiles
     this.enemyShots = [];  // bullets fired by enemy ships
+    this.boosters = [];    // pick-ups (magnet, invisibility, colorful coins, health)
+    this.rainbow = false;  // colorful-coins booster active
   }
 
   add(list, obj) {
@@ -29,9 +31,21 @@ export class World {
   fadeHazards() { for (const h of this.hazards()) h.fading = true; }
 
   clear() {
-    for (const list of [this.asteroids, this.satellites, this.enemies, this.coins, this.bullets, this.enemyShots]) {
+    for (const list of [this.asteroids, this.satellites, this.enemies, this.coins, this.bullets, this.enemyShots, this.boosters]) {
       for (const o of list) o.destroy({ children: true });
       list.length = 0;
+    }
+  }
+
+  // coin magnet: pulls nearby coins towards the ship
+  attractCoins(px, py, dt, R) {
+    for (const c of this.coins) {
+      const dx = px - c.x, dy = py - c.y, d = Math.hypot(dx, dy);
+      if (d < R && d > 1) {
+        const step = Math.min(d, (260 + (1 - d / R) * 900) * dt);
+        c.x += (dx / d) * step;
+        c.y += (dy / d) * step;
+      }
     }
   }
 
@@ -63,8 +77,13 @@ export class World {
 
     for (let i = this.coins.length - 1; i >= 0; i--) {
       const c = this.coins[i];
-      c.update(wdt, dt);
+      c.update(wdt, dt, this.rainbow);
       if (off(c)) this.remove(this.coins, c);
+    }
+    for (let i = this.boosters.length - 1; i >= 0; i--) {
+      const b = this.boosters[i];
+      b.update(wdt, dt);
+      if (off(b)) this.remove(this.boosters, b);
     }
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       const b = this.bullets[i];
