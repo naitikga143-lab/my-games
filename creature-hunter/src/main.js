@@ -12,6 +12,8 @@ import { CrackerSystem, PlayerHealth } from './crackers.js';
 import { setupLandscape } from './landscape.js';
 import { MatchHud } from './matchHud.js'
 import { RemotePlayer } from './remotePlayer.js';
+import { getSfx } from './sfx.js';
+
 
 const isTouch = TouchControls.isTouchDevice();
 
@@ -188,6 +190,12 @@ function spawnPoint() {
 
 /* ================== FIREWORKS + CREATURES ================== */
 const fireworks = new Fireworks(scene);
+
+const sfx = getSfx();
+fireworks.hooks = {
+  launch: (p) => sfx.rocketFly(p),        // skyshot udte waqt seeti
+  burst: (p) => sfx.rocketBang(p, false), // phatne ki awaaz (gaana dabta nahi)
+};
 /* ================== PLAYER HP + CRACKERS ================== */
 const health = new PlayerHealth({
   max: 100,
@@ -354,14 +362,16 @@ window.addEventListener('resize', () => {
 });
 
 if (window.NET) {
-  window.NET.on('end', () => {
+  window.NET.on('end', (m) => {
     matchOver = true;
     crackers.clear();
-    touch.setVisible(false); // warna touch zones result button ke upar aa jaate hain
+    touch.setVisible(false);
     if (matchHud) matchHud.hide();
     health.hud.style.display = 'none';
     health.msgEl.style.display = 'none';
     rig._crosshair.style.display = 'none';
+    // winner ka naam aasman mein + skyshots (30 sec)
+    fireworks.startCelebration({ winner: m.winner, pos: player.root.position, dir: rig.dir, seconds: 30 });
   });
 }
 
@@ -403,11 +413,7 @@ function tick() {
   if (matchOver) {
     celebT -= dt;
     if (celebT <= 0) {
-      celebT = 1.6;
-      _cel.copy(player.root.position).addScaledVector(rig.dir, 22 + Math.random() * 14);
-      _cel.x += (Math.random() - 0.5) * 30;
-      _cel.z += (Math.random() - 0.5) * 30;
-      _cel.y = 0;
+      celebT = 1.6;ss
       fireworks.show(fireworks.plan(player.root.position, _cel));
     }
   }

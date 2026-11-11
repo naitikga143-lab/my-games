@@ -17,10 +17,12 @@ export const CONFIG = {
   boosterOrder: ['magnet', 'ghost', 'rainbow'],
   coinMagnetRadius: 300,
 
-  // Health booster: 500, 800, 1100, 1400 ... (every 300 m), gives +20 HP
-  healthFirst: 500,
-  healthGap: 300,
-  healthAmount: 20,
+  // Health ball: appears every few seconds ONLY while HP is at or below 50% of max.
+  // Above 50% HP no ball comes. (No distance schedule any more.)
+  healthLowFraction: 0.5,
+  healthDelay: 4,          // seconds after HP gets low until the first ball
+  healthInterval: 10,      // seconds between balls while HP stays low
+  healthAmount: 20,        // HP given by one ball
   hpCap: 40,               // HP can go above the starting 20, up to this
 
   stationVy: 170,

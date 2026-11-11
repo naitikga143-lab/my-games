@@ -30,6 +30,7 @@ export class MatchHud {
 #mh .mh-mid span{display:block;font-size:22px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
 #mh .mh-mid.low span{color:#ff6a5e;animation:mhblink 1s steps(2) infinite}
 @keyframes mhblink{50%{opacity:.45}}
+@media (orientation:portrait){#mh{top:calc(max(8px,env(safe-area-inset-top)) + 42px)}}
 .mh-float{position:fixed;left:50%;top:40%;z-index:45;pointer-events:none;transform:translate(-50%,0);
  font:800 clamp(20px,4.5vw,34px) system-ui,sans-serif;text-shadow:0 2px 6px #000}`;
     document.head.appendChild(css);

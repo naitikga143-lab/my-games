@@ -1,7 +1,7 @@
 // Match rules: ek jagah tune karo.
 export const RULES = {
   ALLOW_SOLO: false,         // TESTING: akele START dabake khel sako. Deploy se pehle false karo!
-  DURATION_S: 5 * 60,       // match 7 minute ka
+  DURATION_S: 4 * 60,       // match 7 minute ka
   TOTAL_CREATURES: 50,      // poore match mein kul creatures
   ACTIVE_CREATURES: 5,      // ek waqt mein map par
   COUNTDOWN_S: 3,

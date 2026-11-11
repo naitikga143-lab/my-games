@@ -19,7 +19,7 @@ export class ShipModel extends Container {
       g.position.set(x, 36);
       return g;
     });
-    const hull = new Graphics();
+    const hull = new Graphics();``
     this.drawHull(hull);
 
     // Neon edge glow on the hull (resolution matched to the screen so it stays sharp)
@@ -84,9 +84,9 @@ export class ShipModel extends Container {
   // thrust: -1 (back) .. 1 (forward)
   update(dt, thrust) {
     this.t += dt;
-    const base = 18 + Math.max(0, thrust) * 16 - Math.max(0, -thrust) * 6;
+    const base = 34 + Math.max(0, thrust) * 22 - Math.max(0, -thrust) * 8;
     this.flames.forEach((g, i) => {
-      const len = base + Math.sin(this.t * 45 + i * 2) * 4 + Math.random() * 5;
+      const len = base + Math.sin(this.t * 45 + i * 2) * 3 + Math.random() * 3;
       const c = this.flameColors;
       g.clear()
         .poly([-6, 0, 6, 0, 0, len]).fill({ color: c[0], alpha: 0.85 })

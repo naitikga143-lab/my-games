@@ -58,6 +58,7 @@ export class Game {
     this.overTimer = 0;
     this.sw = 0; this.sh = 0;
     this.flameStyle = '';
+    this.lowHpT = CONFIG.healthDelay; // health-ball timer (runs only while HP is low)
 
     this.player.reset(app.screen);
     this.input.setButtonVisible(true);
@@ -116,7 +117,7 @@ export class Game {
     if (player.magnet) world.attractCoins(player.x, player.y, dt, CONFIG.coinMagnetRadius);
     world.update(wdt, dt, player, screen, this.effects);
     this.updateStation(wdt, dt);
-    this.updateBoosters();
+    this.updateBoosters(dt);
     if (this.mode !== 'play') return;
     resolveCollisions(this);
 
@@ -138,7 +139,7 @@ export class Game {
   }
 
   // ---------- boosters (pick-ups in the air) ----------
-  updateBoosters() {
+  updateBoosters(dt) {
     const { state } = this;
     if (this.station || this.inZone) return;
     const w = this.app.screen.width;
@@ -153,9 +154,17 @@ export class Game {
       spawn(state.nextBoosterKind());
       state.passBooster();
     }
-    if (state.distance >= state.healthNext) {  // health 500, 800, 1100, ...
-      spawn('health');
-      state.passHealth();
+
+    // health ball: only while HP is at or below 50%, then one every few seconds
+    if (state.hp <= state.maxHp * CONFIG.healthLowFraction) {
+      this.lowHpT -= dt;
+      const onScreen = this.world.boosters.some(b => b.kind === 'health');
+      if (this.lowHpT <= 0 && !onScreen) {
+        spawn('health');
+        this.lowHpT = CONFIG.healthInterval;
+      }
+    } else {
+      this.lowHpT = CONFIG.healthDelay; // HP is fine: no ball
     }
   }
 
@@ -292,6 +301,7 @@ export class Game {
     this.inZone = false;
     this.zoneStation = null;
     this.shakeMag = 0;
+    this.lowHpT = CONFIG.healthDelay;
     this.player.reset(this.app.screen);
     this.gameOverScreen.hide();
     this.input.clear();

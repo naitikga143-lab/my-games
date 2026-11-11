@@ -499,12 +499,12 @@ export class Sfx {
   }
 
   // phatna: crack + thump + taaron ki tin-tin + chingaari ki sarsaraahat
-  rocketBang(pos) {
+  rocketBang(pos, duck = true) {
     if (!this._ok()) return;
     const c = this.ctx, t = c.currentTime;
     const { vol, pan } = this._sp(pos, 1.7);
     const ch = this._chain(vol, pan);
-    this._duck(0.6, 0.5);
+    if (duck) this._duck(0.6, 0.5);
 
     const n = this._noise(false);
     const bp = this._filter('bandpass', 2600, 0.4);

@@ -23,7 +23,6 @@ export class State {
     this.boosterIndex = 0;
     this.boosterNext = CONFIG.boosterFirst;
     this.boost = { magnet: 0, ghost: 0, rainbow: 0 };
-    this.healthNext = CONFIG.healthFirst; // health boosters: every 300 m
   }
 
   get fuel() { return this.fuelType ? FUELS[this.fuelType] : null; }
@@ -47,7 +46,6 @@ export class State {
     this.boosterNext += CONFIG.boosterGaps[this.boosterIndex % CONFIG.boosterGaps.length];
     this.boosterIndex++;
   }
-  passHealth() { this.healthNext += CONFIG.healthGap; }
   heal(n) { // HP can go above the starting 20, up to hpCap
     this.hp = Math.min(CONFIG.hpCap, this.hp + n);
     this.maxHp = Math.max(this.maxHp, this.hp);
