@@ -4,6 +4,9 @@
 /* fullscreen button (top-right) ke neeche ROOM code na chhupe */
 #menu .lhead { padding-right: 46px; }
 
+/* asli banner ad aane par dashed placeholder wala dabba hat jaye */
+#menu .ad.live { border-color: transparent; background: transparent; }
+
 /* ---------- celebration / scorecard ---------- */
 #menu .end { background: radial-gradient(ellipse at center, rgba(3, 6, 20, .10), rgba(3, 6, 20, .60)); pointer-events: none; }
 #menu .end .card {
@@ -53,14 +56,14 @@
 
   /* lobby: START beech mein neeche, slots upar */
   #sLobby { padding-top: calc(env(safe-area-inset-top, 0px) + 8px); }
-  #menu .arena { padding-bottom: 128px; }
+  #menu .arena { padding-bottom: 142px; }
   #menu .slot { width: min(24vw, 30vh, 170px); padding: 8px; gap: 5px; }
   #menu .slot .avatar { width: clamp(40px, 9vw, 60px); font-size: clamp(20px, 5vw, 30px); }
   #menu .plus { width: clamp(44px, 7vw, 60px); font-size: 30px; }
-  #menu .hint { bottom: 98px; font-size: 12px; }
-  #menu .startbar { bottom: 50px; }
+  #menu .hint { bottom: 112px; font-size: 12px; }
+  #menu .startbar { bottom: 62px; }
   #menu .startbar .tap { padding: 10px 40px; }
-  #menu .ad { height: 38px; bottom: 6px; }
+  #menu .ad { height: 50px; bottom: 6px; } /* 320x50 banner poora aaye */
   #menu .diyas { display: none; }
 
   /* invite / match sheet */

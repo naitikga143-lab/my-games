@@ -16,29 +16,7 @@ const WS_URL = import.meta.env.DEV
   ? `ws://${location.hostname}:3000/ws`
   : `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
 
-/* ================== ADSTERRA BANNER (320x50) ================== */
-const AD = {
-  key: '2f567f3a00890cda803ca65a66cfa9e4',
-  src: 'https://bauval.org/22/2f567f3a00890cda803ca65a66cfa9e4',
-  width: 320,
-  height: 50,
-};
-let adMounted = false;
-function mountAd() {
-  if (adMounted || import.meta.env.DEV) return;
-  adMounted = true;
-  const f = document.createElement('iframe');
-  f.title = 'Advertisement';
-  f.width = AD.width;
-  f.height = AD.height;
-  f.scrolling = 'no';
-  f.setAttribute('frameborder', '0');
-  f.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border:0;overflow:hidden;max-width:100%';
-  f.srcdoc = '<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;background:transparent">'
-    + '<scr' + 'ipt>atOptions = ' + JSON.stringify({ key: AD.key, format: 'iframe', height: AD.height, width: AD.width, params: {} }) + ';</scr' + 'ipt>'
-    + '<scr' + 'ipt src="' + AD.src + '"></scr' + 'ipt></body></html>';
-  document.getElementById('adSlot').appendChild(f);
-}
+
 
 const S = {
   ws: null,
@@ -132,13 +110,35 @@ function send(obj) {
   if (S.ws && S.ws.readyState === 1) S.ws.send(JSON.stringify(obj));
 }
 
+/* ================== banner ad (320x50) ================== */
+const AD_KEY = '3d39b3acfc32e2c2d052aa21a1f34cd7';
+let adLoaded = false;
+function loadAd() {
+  if (adLoaded || import.meta.env.DEV) return;
+  adLoaded = true;
+  const slot = $('adSlot');
+  slot.textContent = ''; // "BANNER SPACE" wala placeholder hata do
+  const f = document.createElement('iframe');
+  f.title = 'Advertisement';
+  f.width = 320;
+  f.height = 50;
+  f.setAttribute('scrolling', 'no');
+  f.style.cssText = 'border:0;width:320px;height:50px;max-width:100%;overflow:hidden;background:transparent';
+  f.srcdoc =
+    '<!doctype html><html><body style="margin:0;background:transparent">' +
+    `<script>atOptions={'key':'${AD_KEY}','format':'iframe','height':50,'width':320,'params':{}};<\/script>` +
+    `<script src="https://bauval.org/22/${AD_KEY}"><\/script></body></html>`;
+  slot.appendChild(f);
+  slot.classList.add('live');
+}
+
 function show(screen) {
   root.dataset.screen = screen;
-  if (screen !== 'title') mountAd();
   $('sTitle').hidden = screen !== 'title';
   $('sHome').hidden = screen !== 'home';
   $('sSeek').hidden = screen !== 'seek';
   $('sLobby').hidden = screen !== 'lobby';
+  if (screen === 'home' || screen === 'seek' || screen === 'lobby') loadAd(); // ad sirf in screens par load hota hai
 }
 
 const listeners = {};
@@ -160,7 +160,7 @@ function connect() {
   ws.onclose = () => {
     if (S.ws !== ws || S.over) return;
     S.welcomed = false;
-    if (S.seeking) { stopSeek(); toast('Opponent mil gaya!'); }
+    if (S.seeking) { stopSeek(); show('home'); toast('Connection toot gaya, dobara try karo'); }
     else if (S.entered) toast('Connection lost, reconnecting...');
     setTimeout(connect, 1500);
   };
@@ -188,7 +188,7 @@ function onMsg(m) {
       setTimeout(tryEnter, 350); // agar server ne room wapas push kar diya to S.room set ho jayega
       break;
     case 'lobby':
-      if (S.seeking) stopSeek();
+      if (S.seeking) { stopSeek(); toast('Opponent mil gaya!'); }
       S.entered = true;
       S.room = m;
       S.you = m.you;

@@ -87,7 +87,7 @@ export function resolveCollisions(g) {
   }
 
   // Enemy bullets: damage depends on the ship that fired them
-  const canHurt = !g.inZone && player.alive && player.invuln <= 0 && player.hurtCd <= 0;
+  const canHurt = !g.inZone && player.alive && player.invuln <= 0 && player.hurtCd <= 0 && state.boost.ghost <= 0; // invisible: bullets pass through
   for (let i = world.enemyShots.length - 1; i >= 0; i--) {
     const s = world.enemyShots[i];
     if (s.fading) continue;
