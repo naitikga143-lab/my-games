@@ -1,7 +1,9 @@
 // touch.js — phone ke liye controls
 // Left side: floating joystick (jahan ungli rakho wahin bann jaata hai)
 // Right side: ungli ghumao = camera ghoomega
-// Buttons: JUMP, RUN (toggle), aur apne extra buttons addButton() se
+// Buttons: JUMP, RUN (toggle), aur apne extra buttons addButton() se (FIRE, CAM)
+// Buttons ki jagah aur size customize screen (customize.js) se aati hai, controlsLayout.js se padhi jaati hai.
+import { BASE, loadLayout, orient, centerOf, sizeOf, safeBottom } from './controlsLayout.js';
 
 export class TouchControls {
   static isTouchDevice() {
@@ -30,11 +32,14 @@ export class TouchControls {
     this._sprintLatched = false;
     this._origin = { x: 0, y: 0 };
     this._last = { x: 0, y: 0 };
-    this._buttons = [];
+    this._btn = {}; // id (fire, jump, run, cam) -> element
 
     if (!this.enabled) return;
     this._injectStyle();
     this._build(parent);
+    this._onResize = () => this.applyLayout();
+    window.addEventListener('resize', this._onResize);
+    this.applyLayout();
   }
 
   /* camera ke liye: har frame ek baar bulao.
@@ -52,35 +57,45 @@ export class TouchControls {
   }
 
   /* extra button (attack, shoot, interact...)
-     touch.addButton({ label: 'HIT', onPress: () => ..., onRelease: () => ..., slot: 0 })
-     slot 0,1,2 = JUMP ke upar-baayein ki taraf */
-  addButton({ label = '', onPress, onRelease, slot = 0 } = {}) {
+     touch.addButton({ label: 'FIRE', onPress: () => ..., onRelease: () => ... })
+     Jagah aur size label (FIRE, CAM) se pehchani jaati hai aur customize layout se aati hai.
+     `slot` ab nahi chahiye, purane code ke liye accept hota hai. */
+  addButton({ label = '', onPress, onRelease } = {}) {
     if (!this.enabled) return null;
+    const id = label.toLowerCase();
     const el = document.createElement('div');
     el.className = 'tc-btn tc-small';
     el.textContent = label;
-    const spots = [
-      { right: '24px', bottom: '132px' },   // slot 0 (FIRE)
-      { right: '118px', bottom: '104px' },  // slot 1 (AIM)
-      { right: '24px', bottom: '206px' },   // slot 2 (CAM)
-      { right: '118px', bottom: '178px' },  // slot 3 (extra)
-      { right: '118px', bottom: '178px' },  // slot 3 (extra)
-      { right: '24px', bottom: '34px', big: true }, // slot 4 = bada FIRE button
-    ];
-    const sp = slot === 'main'
-      ? { right: '24px', bottom: '34px', big: true }   // bada FIRE button (neeche-right)
-      : spots[slot % spots.length];
-    el.className = 'tc-btn ' + (sp.big ? 'tc-big' : 'tc-small');
-    el.className = 'tc-btn ' + (sp.big ? 'tc-big' : 'tc-small');
-    el.style.right = sp.right;
-    el.style.bottom = `calc(${sp.bottom} + env(safe-area-inset-bottom, 0px))`;
     this._bindButton(el, onPress, onRelease);
     this.root.appendChild(el);
+    this._btn[id] = el;
+    this.applyLayout();
     return el;
+  }
+
+  // saved layout (ya default) ke hisaab se buttons rakho
+  applyLayout() {
+    if (!this.enabled) return;
+    const W = window.innerWidth, H = window.innerHeight;
+    const cfg = loadLayout()[orient()] || null;
+    const inset = safeBottom();
+    for (const id of Object.keys(this._btn)) {
+      if (!(id in BASE)) continue; // koi aur extra button ho to apni jagah
+      const el = this._btn[id];
+      const s = sizeOf(id, cfg);
+      const c = centerOf(id, W, H, cfg, inset);
+      el.style.width = `${s}px`;
+      el.style.height = `${s}px`;
+      el.style.left = `${c.x - s / 2}px`;
+      el.style.top = `${c.y - s / 2}px`;
+      el.style.right = 'auto';
+      el.style.bottom = 'auto';
+    }
   }
 
   dispose() {
     this._reset();
+    if (this._onResize) window.removeEventListener('resize', this._onResize);
     this.root?.remove();
     this.style?.remove();
   }
@@ -119,11 +134,9 @@ export class TouchControls {
         background: rgba(255,255,255,.16); border: 2px solid rgba(255,255,255,.4);
         backdrop-filter: blur(4px); -webkit-tap-highlight-color: transparent; transition: transform .06s, background .06s; }
       .tc-btn.on, .tc-btn:active { background: rgba(255,255,255,.4); transform: scale(.92); }
-      .tc-jump { width: 58px; height: 58px; right: 24px;
-        bottom: calc(132px + env(safe-area-inset-bottom, 0px)); }
-      .tc-big { width: 84px; height: 84px; font-size: 14px; }
-      .tc-run { width: 62px; height: 62px; right: 120px;
-        bottom: calc(26px + env(safe-area-inset-bottom, 0px)); }
+      /* size aur jagah applyLayout() inline set karta hai; ye sirf shuruaati size hai */
+      .tc-jump { width: 58px; height: 58px; font-size: 14px; }
+      .tc-run { width: 62px; height: 62px; }
       .tc-small { width: 58px; height: 58px; }
       .tc-btn.lock { background: rgba(255,200,80,.45); border-color: rgba(255,220,120,.9); }
     `;
@@ -175,6 +188,9 @@ export class TouchControls {
       run.classList.toggle('on', this._sprintLatched);
       this._applySprint();
     });
+
+    this._btn.jump = jump;
+    this._btn.run = run;
 
     root.append(left, right, hint, joyBase, jump, run);
     parent.appendChild(root);

@@ -1,6 +1,7 @@
 import './menu.css';
 import './menuAddon.css';
 import { getSfx } from './sfx.js';
+import { openCustomize } from './customize.js';
 import { setupLandscape } from './landscape.js';
 
 // title/lobby bhi landscape mein: portrait mein "phone ghumao" screen, pehle tap par fullscreen
@@ -48,6 +49,7 @@ root.innerHTML = `
       <h1 class="logo"><span>CREATURE</span><span>HUNTER</span></h1>
       <div class="sub"><i></i><b>DIWALI SPECIAL</b><i></i></div>
       <button class="tap" id="btnPlay">TAP TO PLAY</button>
+      <button class="cust-btn" id="btnCust">CUSTOMIZE CONTROLS</button>
     </section>
 
     <section class="screen" id="sHome" hidden>
@@ -150,6 +152,7 @@ window.NET = {
 
 /* ================== connection ================== */
 function connect() {
+  if (S.ws && S.ws.readyState <= 1) return;
   const ws = new WebSocket(WS_URL + (S.token ? `?token=${S.token}` : ''));
   S.ws = ws;
   ws.onmessage = (e) => {
@@ -166,6 +169,11 @@ function connect() {
   };
   ws.onerror = () => {};
 }
+
+// app/tab wapas dikhe ya internet aaye to turant reconnect (1.5 sec ka intezar nahi)
+const wake = () => { if (!document.hidden && !S.over && (!S.ws || S.ws.readyState > 1)) connect(); };
+document.addEventListener('visibilitychange', wake);
+window.addEventListener('online', wake);
 
 function tryEnter() {
   if (!S.entered || !S.welcomed || S.room || S.started) return;
@@ -185,7 +193,13 @@ function onMsg(m) {
       S.token = m.token;
       sessionStorage.setItem('ch_token', m.token);
       S.welcomed = true;
-      setTimeout(tryEnter, 350); // agar server ne room wapas push kar diya to S.room set ho jayega
+      S.hadRoom = !!S.room; // reconnect: room bacha hoga to server 'lobby' wapas bhej dega
+      S.room = null;
+      setTimeout(() => {
+        if (S.hadRoom && !S.room && S.entered && !S.started) toast('Purana room khatam ho gaya, naya room ban raha hai');
+        S.hadRoom = false;
+        tryEnter();
+      }, 600);
       break;
     case 'lobby':
       if (S.seeking) { stopSeek(); toast('Opponent mil gaya!'); }
@@ -226,7 +240,7 @@ function onMsg(m) {
 /* ================== lobby ================== */
 function slotHtml(color, data, mine) {
   if (data) {
-    return `<div class="avatar">${data.name[0]}</div><div class="nm">${data.name}</div>${mine ? '<span class="you">YOU</span>' : ''}<div class="st">Ready</div>`;
+    return `<div class="avatar">${data.name[0]}</div><div class="nm">${data.name}</div>${mine ? '<span class="you">YOU</span>' : ''}<div class="st">${data.off ? 'Reconnecting...' : 'Ready'}</div>`;
   }
   return `<button class="plus" id="btnPlus" aria-label="Add opponent">+</button><div class="nm dim">Waiting for opponent</div>`;
 }
@@ -262,6 +276,9 @@ function goLobby() {
 // Title -> Home. Invite link se aaya player (ya purane room wala) seedha Lobby mein jaata hai.
 $('btnPlay').addEventListener('click', () => {
   if (S.room || S.inviteCode) goLobby(); else show('home');
+});
+$('btnCust').addEventListener('click', () => {
+  openCustomize((r) => { if (r === 'saved') toast('Controls save ho gaye'); });
 });
 $('btnCreate').addEventListener('click', goLobby);
 $('btnEnter').addEventListener('click', () => startSeek());

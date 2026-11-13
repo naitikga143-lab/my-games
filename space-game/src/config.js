@@ -1,5 +1,6 @@
 export const CONFIG = {
   shipSpeed: 460,
+  startAtHome: true,
   playerHp: 20,            // enemy bullets take HP (2 / 4 / 6 / 8 per hit); 0 HP = game over
   hurtCooldown: 0.5,       // ship is safe for this long after a hit
   metersPerSecond: 10,     // base speed (x1) = 10 m/s
@@ -84,4 +85,16 @@ export const BOOSTERS = {
   ghost: { id: 'ghost', name: 'INVISIBILITY', duration: 90, color: 0x9fe8ff },
   rainbow: { id: 'rainbow', name: 'COLORFUL COINS', duration: 60, color: 0xff66dd },
   health: { id: 'health', name: 'HEALTH', color: 0xff5a8a }, // instant: +20 HP
+};
+
+
+// ---- Ads (shown ONLY on the Home page) ----
+// Paste the code Adsterra gives you between the backticks.
+// Leave a slot as `` (empty) to see a grey placeholder box instead.
+export const ADS = {
+  enabled: true,
+  bannerHtml: ``,       // Banner for phones / small screens (320x50)
+  bannerWideHtml: ``,   // Banner for wide screens (728x90) - optional
+  socialHtml: ``,       // Social Bar code (shown in a strip at the top)
+  socialMode: 'iframe', // 'iframe' = kept inside the top strip. If the social bar does not show, try 'page'
 };

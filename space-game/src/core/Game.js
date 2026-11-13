@@ -14,7 +14,8 @@ import { Exhaust } from '../systems/Exhaust.js';
 import { resolveCollisions } from '../systems/Collisions.js';
 import { Hud } from '../ui/Hud.js';
 import { ShopScreen } from '../ui/ShopScreen.js';
-import { GameOverScreen } from '../ui/GameOver.js';
+import { HomeScreen } from '../ui/HomeScreen.js';
+import { Ads } from '../ui/Ads.js';
 
 export class Game {
   async start() {
@@ -40,16 +41,17 @@ export class Game {
     this.stationLayer = new Container();
     this.hud = new Hud();
     this.shop = new ShopScreen(app.screen);
-    this.gameOverScreen = new GameOverScreen();
+    this.home = new HomeScreen();
+    this.ads = new Ads();
 
     this.root = new Container(); // moved for screen shake
     this.root.addChild(
       this.map.background, this.stationLayer, this.world.objects, this.world.shots,
       this.exhaust, this.player, this.effects, this.map.foreground,
     );
-    app.stage.addChild(this.root, this.hud, this.shop, this.gameOverScreen);
+    app.stage.addChild(this.root, this.hud, this.shop, this.home);
 
-    this.mode = 'play'; // play | shop | over
+    this.mode = 'play'; // home | play | shop | over
     this.speed = 1;     // eased world speed (0 = map stopped)
     this.inZone = false;
     this.zoneStation = null;
@@ -59,13 +61,24 @@ export class Game {
     this.sw = 0; this.sh = 0;
     this.flameStyle = '';
     this.lowHpT = CONFIG.healthDelay; // health-ball timer (runs only while HP is low)
+    this.best = this.loadBest();
+    this.homeT = 0;
+    this.homeInfo = null;
 
     this.player.reset(app.screen);
     this.input.setButtonVisible(true);
     app.ticker.add(t => this.update(t.deltaMS / 1000));
+    if (CONFIG.startAtHome) this.showHome(false);
   }
 
   shake(m) { this.shakeMag = Math.max(this.shakeMag, m); }
+
+  loadBest() {
+    try { return Number(localStorage.getItem('spacegame_best')) || 0; } catch (e) { return 0; }
+  }
+  saveBest(v) {
+    try { localStorage.setItem('spacegame_best', String(Math.floor(v))); } catch (e) { /* ignore */ }
+  }
 
   checkResize() {
     const { width, height } = this.app.screen;
@@ -73,6 +86,9 @@ export class Game {
     this.sw = width; this.sh = height;
     this.map.resize(width, height);
     this.hud.layout(width, height);
+    if (this.mode === 'home' && this.homeInfo) {
+      this.home.show(width, height, this.homeInfo, () => this.startRun());
+    }
   }
 
   update(dt) {
@@ -88,6 +104,7 @@ export class Game {
       this.root.position.set(0, 0);
     }
 
+    if (this.mode === 'home') { this.updateHome(dt); return; }
     if (this.mode === 'shop') { this.shop.update(dt); return; }
     if (this.mode === 'over') { this.updateOver(dt); return; }
 
@@ -262,7 +279,7 @@ export class Game {
     if (s.hp <= 0) this.gameOver();
   }
 
-  // ---------- game over ----------
+  // ---------- game over -> home page ----------
   gameOver() {
     if (this.mode === 'over') return;
     this.mode = 'over';
@@ -278,14 +295,11 @@ export class Game {
     this.map.update(dt * 0.3, this.player, 0.3, dt);
     this.exhaust.update(dt, this.player);
     this.overTimer -= dt;
-    if (this.overTimer <= 0 && !this.gameOverScreen.visible) {
-      const { width, height } = this.app.screen;
-      this.gameOverScreen.show(width, height, this.state, () => this.reset());
-    }
-    if (this.gameOverScreen.visible && this.input.is('Enter')) this.reset();
+    if (this.overTimer <= 0) this.showHome(true); // explosion is over: go to the Home page
   }
 
-  reset() {
+  // removes everything from the last run
+  clearRun() {
     this.world.clear();
     this.effects.clear();
     this.exhaust.clear();
@@ -294,16 +308,52 @@ export class Game {
       this.station.destroy({ children: true });
       this.station = null;
     }
+    this.inZone = false;
+    this.zoneStation = null;
+    this.shakeMag = 0;
+  }
+
+  // ---------- home page (+ ads) ----------
+  showHome(fromRun) {
+    const s = this.state;
+    if (fromRun && s.distance > this.best) {
+      this.best = s.distance;
+      this.saveBest(this.best);
+    }
+    this.clearRun();
+    this.mode = 'home';
+    this.homeT = 0;
+    this.hud.visible = false;
+    this.player.visible = false;
+    this.input.clear();
+    this.input.setButtonVisible(false);
+    this.homeInfo = { gameOver: fromRun, distance: s.distance, coins: s.coins, best: this.best };
+    const { width, height } = this.app.screen;
+    this.home.show(width, height, this.homeInfo, () => this.startRun());
+    this.ads.show(); // banner at the bottom + social bar at the top
+  }
+
+  updateHome(dt) {
+    this.homeT += dt;
+    this.map.update(dt * 0.25, this.player, 0.5, dt); // background keeps drifting slowly
+    if (this.homeT > 0.6 && this.input.is('Enter')) this.startRun();
+  }
+
+  startRun() {
+    this.home.hide();
+    this.ads.hide();
+    this.reset();
+  }
+
+  reset() {
+    this.clearRun();
     this.state.reset();
     this.spawner.reset();
     this.weapons.reset();
     this.speed = 1;
-    this.inZone = false;
-    this.zoneStation = null;
-    this.shakeMag = 0;
     this.lowHpT = CONFIG.healthDelay;
     this.player.reset(this.app.screen);
-    this.gameOverScreen.hide();
+    this.hud.visible = true;
     this.input.clear();
     this.input.setButtonVisible(true);
     this.mode = 'play';

@@ -7,6 +7,7 @@ const other = (c) => (c === 'red' ? 'blue' : 'red');
 const STATE_KEYS = ['x', 'y', 'z', 'f', 'cy', 'ax', 'ay', 'az', 'vy', 'hs'];
 const AMMO = new Set(['ready', 'empty', 'reload']);
 const SEEK_MS = 60 * 1000; // "Enter Match" par kitni der intezar
+const LOBBY_GRACE_MS = 120 * 1000;
 
 // Dono clients ko same trees dene ke liye server hi params deta hai
 // (mobile/desktop ka alag treeCount ab nahi chalega).
@@ -44,12 +45,15 @@ export class Lobby {
 
     if (p.room) {
       const room = p.room;
+      p.dropAt = null;
       if (room.match && !room.match.ended) {
-        p.dropAt = null;
         send(p, { ...this._startPayload(room, p.color), t: 'resume', snap: room.match.snapshot() });
         send(room.players[other(p.color)], { t: 'oppStatus', connected: true });
       } else {
         this._pushRoom(room);
+        // dono maujood hain par countdown ruka hua tha (kisi ka connection toota tha) => dobara shuru
+        const { red, blue } = room.players;
+        if (red && blue && red.ws && blue.ws && !room.match && !room.countdown) this._startCountdown(room);
       }
     }
     return p;
@@ -64,8 +68,12 @@ export class Lobby {
     if (room && room.match && !room.match.ended) {
       p.dropAt = Date.now() + RULES.RECONNECT_GRACE_S * 1000;
       send(room.players[other(p.color)], { t: 'oppStatus', connected: false });
+    } else if (room) {
+      // lobby/countdown mein tha: room kuch der bacha ke rakho (link copy/WhatsApp ke liye app se bahar gaya hoga)
+      p.dropAt = Date.now() + LOBBY_GRACE_MS;
+      this._cancelCountdown(room); // koi offline ho to match shuru na ho
+      this._pushRoom(room);
     } else {
-      this.leave(p);
       this.sessions.delete(p.token);
     }
   }
@@ -94,6 +102,7 @@ export class Lobby {
     const room = p.room;
     if (!room || p.color !== 'red' || room.match || room.countdown) return;
     const both = !!(room.players.red && room.players.blue);
+    if (both && !(room.players.red.ws && room.players.blue.ws)) return;
     if (!both && !RULES.ALLOW_SOLO) return;
     room.solo = !both;
     this._unqueueRoom(room);
@@ -219,13 +228,14 @@ export class Lobby {
 
   _pushRoom(room) {
     const slots = {
-      red: room.players.red ? { name: NAMES.red } : null,
-      blue: room.players.blue ? { name: NAMES.blue } : null,
+      red: room.players.red ? { name: NAMES.red, off: !room.players.red.ws } : null,
+      blue: room.players.blue ? { name: NAMES.blue, off: !room.players.blue.ws } : null,
     };
     const both = !!(slots.red && slots.blue);
+    const online = both ? !!(room.players.red.ws && room.players.blue.ws) : RULES.ALLOW_SOLO;
     for (const color of ['red', 'blue']) {
       // START sirf host (Red) ke liye; akele tab hi jab ALLOW_SOLO on ho
-      const canStart = color === 'red' && !room.match && !room.countdown && (both || RULES.ALLOW_SOLO);
+      const canStart = color === 'red' && !room.match && !room.countdown && online;
       send(room.players[color], { t: 'lobby', code: room.code, you: color, queued: room.queued, slots, canStart });
     }
   }
@@ -333,6 +343,14 @@ export class Lobby {
 
   tick() {
     const now = Date.now();
+    // lobby mein offline ho gaye aur grace khatam: room se hata do
+    for (const p of [...this.sessions.values()]) {
+      if (p.ws || !p.dropAt || now <= p.dropAt) continue;
+      const m = p.room && p.room.match;
+      if (m && !m.ended) continue; // match mein hai to match wala code sambhalta hai
+      this.leave(p);
+      this.sessions.delete(p.token);
+    }
     for (const sk of [...this.seekers]) {
       if (now > sk.seekUntil) { this._unseek(sk); send(sk, { t: 'seekFail' }); }
     }

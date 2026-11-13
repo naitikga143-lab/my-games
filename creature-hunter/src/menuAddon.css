@@ -4,6 +4,13 @@
 /* fullscreen button (top-right) ke neeche ROOM code na chhupe */
 #menu .lhead { padding-right: 46px; }
 
+/* title screen: CUSTOMIZE CONTROLS button (TAP TO PLAY ke neeche) */
+#menu .cust-btn {
+  margin-top: 14px; padding: 10px 22px; border-radius: 999px; font: 700 12px system-ui, sans-serif; letter-spacing: .16em;
+  color: var(--ink); background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .28);
+}
+#menu .cust-btn:active { transform: scale(.96); background: rgba(255, 255, 255, .16); }
+
 /* asli banner ad aane par dashed placeholder wala dabba hat jaye */
 #menu .ad.live { border-color: transparent; background: transparent; }
 
@@ -40,6 +47,7 @@
   #menu .logo span + span { font-size: 1em; letter-spacing: .05em; }
   #menu .sub { margin-top: 8px; }
   #menu .tap { margin-top: 3vh; padding: 11px 30px; }
+  #menu .cust-btn { margin-top: 8px; padding: 8px 18px; }
 
   /* home */
   #sHome, #sSeek { padding-bottom: 70px; }
