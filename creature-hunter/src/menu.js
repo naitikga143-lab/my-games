@@ -2,6 +2,7 @@ import './menu.css';
 import './menuAddon.css';
 import { getSfx } from './sfx.js';
 import { openCustomize } from './customize.js';
+import { setSocialBar, endSocialBar } from './socialBar.js';
 import { setupLandscape } from './landscape.js';
 
 // title/lobby bhi landscape mein: portrait mein "phone ghumao" screen, pehle tap par fullscreen
@@ -141,6 +142,7 @@ function show(screen) {
   $('sSeek').hidden = screen !== 'seek';
   $('sLobby').hidden = screen !== 'lobby';
   if (screen === 'home' || screen === 'seek' || screen === 'lobby') loadAd(); // ad sirf in screens par load hota hai
+  setSocialBar(true);
 }
 
 const listeners = {};
@@ -399,7 +401,8 @@ $('sheet').addEventListener('click', async (e) => {
 /* ================== countdown / game / result ================== */
 function showCount(n) {
   const c = $('count');
-  if (n === null || n === undefined) { c.hidden = true; return; }
+  if (n === null || n === undefined) { c.hidden = true; setSocialBar(true); return; }
+  setSocialBar(false); // match shuru hone wala hai
   c.hidden = false;
   const el = $('countN');
   el.textContent = n;
@@ -411,6 +414,7 @@ function showCount(n) {
 async function startGame(m) {
   if (S.started) return;
   S.started = true;
+  endSocialBar();
   S.you = m.you;
   window.MATCH = m; // seed, trees params, rules, you
   closeSheet(true);
@@ -544,5 +548,7 @@ function createFx(canvas) {
   return { stop() { running = false; window.removeEventListener('resize', resize); } };
 }
 const fx = createFx($('mFx'));
+
+setSocialBar(true);
 
 connect();
